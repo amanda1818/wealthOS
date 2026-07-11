@@ -1,0 +1,10 @@
+{
+  "name": "Sovereign Wealth OS",
+  "description": "A high-performance domestic-calm command center for high-earning, busy couples, featuring a minimalist Soul Bento aesthetic, split-cost receivables trackers, and offline-first solvency engines.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
