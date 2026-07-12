@@ -115,7 +115,7 @@ const Ledger: React.FC<LedgerProps> = ({
         (t.description || '').toLowerCase().includes(q) || 
         (t.category || '').toLowerCase().includes(q) ||
         (t.merchant || '').toLowerCase().includes(q) ||
-        (t.tags || []).some(tg => tg.toLowerCase().includes(q))
+        (t.tags || []).some(tg => (tg || '').toLowerCase().includes(q))
       );
     }
 

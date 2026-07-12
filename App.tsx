@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Shield, Home, Menu, Mic, Send, Settings as SettingsIcon, Plus, QrCode, CheckCircle2, Activity, Calendar, HeartHandshake, Zap, Compass, Briefcase, Gem, Building2, AlertTriangle, ArrowRight, Lock, Droplets, Play, Pause, RefreshCw, HandCoins, ArrowRightLeft, Scale, Banknote, Globe, Camera, Image as ImageIcon, X, LayoutDashboard, History, ScrollText, Sparkles, MessageSquare, MicOff, Link, AlertOctagon, User, Users, Eye, EyeOff } from 'lucide-react';
+import { Shield, Home, Menu, Mic, Send, Settings as SettingsIcon, Plus, QrCode, CheckCircle2, Activity, Calendar, HeartHandshake, Zap, Compass, Briefcase, Gem, Building2, AlertTriangle, ArrowRight, Lock, Droplets, Play, Pause, RefreshCw, HandCoins, ArrowRightLeft, Scale, Banknote, Globe, Camera, Image as ImageIcon, X, LayoutDashboard, History, ScrollText, Sparkles, MessageSquare, MicOff, Link, AlertOctagon, User, Users, Eye, EyeOff, LogOut } from 'lucide-react';
 import { AppState, PocketType, Transaction, TransactionType, PocketSettings, PocketGroup, Pocket, Currency, FortressGoal, User as UserType, Asset, Liability, AlphaAlert, AdvisorMessage, HistoricalSnapshot, AgentPayload } from './types';
 import PocketCard from './components/PocketCard';
 import TransactionList from './components/TransactionList';
@@ -24,9 +24,13 @@ import RecurringManager from './components/RecurringManager';
 import { parseTransactionInput, parseMultimodalInput, extractReceiptData } from './services/geminiService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { getExchangeRates, convertToIDR, formatCurrency } from './services/currencyService';
-import { saveState, loadState } from './services/storageService'; 
 import { syncInstitutions } from './services/bankSyncService';
-import { exportToCloud } from './services/cloudVaultService';
+import AuthGate from './components/Auth';
+import {
+  pullHouseholdState, pushHouseholdState, saveLocalCache, loadLocalCache,
+  migrateLegacyLocalStateIfNeeded, HouseholdContext,
+} from './services/syncService';
+import { signOut, onAuthStateChange } from './services/authService';
 
 const himUser: UserType = { 
     id: 'user_his', name: 'David', email: 'david@heritage.com', isAuthenticated: true, avatar: 'D', monthlyIncome: 40000000, role: 'MEMBER', 
@@ -526,7 +530,42 @@ type LensType = 'HIS' | 'JOINT' | 'HER';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
-  
+
+  // Auth + real persistence (Phase 1). Nothing renders until this resolves --
+  // see the AuthGate early-return near the bottom of this component.
+  const [householdCtx, setHouseholdCtx] = useState<HouseholdContext | null>(null);
+
+  const handleAuthReady = async (ctx: HouseholdContext, isFreshHousehold: boolean) => {
+    setHouseholdCtx(ctx);
+    try {
+      const cached = loadLocalCache(ctx.householdId);
+      if (cached) setState(prev => ({ ...prev, ...cached }));
+
+      await migrateLegacyLocalStateIfNeeded(ctx, isFreshHousehold);
+
+      const remote = await pullHouseholdState(ctx);
+      setState(prev => {
+        const next = { ...prev, ...remote } as AppState;
+        saveLocalCache(ctx.householdId, next);
+        return next;
+      });
+    } catch (e) {
+      console.error('Failed to load household state', e);
+    }
+  };
+
+  // AuthGate only listens for session changes while it's mounted (i.e. before
+  // householdCtx resolves); this catches sign-out once the main app is showing.
+  useEffect(() => {
+      const sub = onAuthStateChange((session) => {
+          if (!session) {
+              setHouseholdCtx(null);
+              setState(INITIAL_STATE);
+          }
+      });
+      return () => sub.unsubscribe();
+  }, []);
+
   // CS & Product Mitigation: Global Camouflage Privacy Mode & Action Rollback Snapshots
   const [privacyMode, setPrivacyMode] = useState<boolean>(() => {
     return localStorage.getItem('SOVEREIGN_OS_PRIVACY_MODE') === 'true';
@@ -621,77 +660,30 @@ const App: React.FC = () => {
       return new Intl.NumberFormat(language === 'ID' ? 'id-ID' : 'en-US', { notation: "compact", maximumFractionDigits: 1 }).format(num);
   };
 
+  // Persistence is now driven by handleAuthReady (Supabase pull on sign-in)
+  // and the sync effect below (debounced push on state change) -- see
+  // services/syncService.ts. localStorage survives only as its offline cache.
   useEffect(() => {
-      const resetFlag = localStorage.getItem('SOVEREIGN_RESET_ZERO_V7');
-      if (!resetFlag) {
-          localStorage.removeItem('sovereign_wealth_os_v1');
-          localStorage.setItem('SOVEREIGN_RESET_ZERO_V7', 'true');
-          setState(INITIAL_STATE);
-          return;
-      }
-      const saved = loadState();
-      if (saved) {
-          if (saved.pockets) {
-              const mapIndonesianToEnglishPocket = (name: string): string => {
-                if (name === 'Zakat & Kebajikan') return 'Zakat & Charitable Giving';
-                if (name === 'Investasi Masa Depan (Growth Engine)') return 'Future Investments (Growth Engine)';
-                if (name === 'Dana Investasi Bebas') return 'Flexible Investment Cash';
-                if (name === 'Benteng Masa Depan (Emergency Cash)') return 'Future Fortress (Emergency Cash)';
-                if (name === 'Brankas Cadangan Pajak') return 'Tax Liability Treasury';
-                if (name === 'Staff & Gaji Rumah') return 'Staff & Household Salary';
-                if (name === 'Tempat Tinggal (Housing OpEx)') return 'Housing & Lease';
-                if (name === 'Utilitas & Tagihan Serat OPT') return 'Utilities & Bills';
-                if (name === 'Cicilan & Pinjaman (Loans & Mortgages)') return 'Debt Service & Mortgage';
-                if (name === 'Belanja Bulanan & Sembako') return 'Groceries & Provisions';
-                if (name === 'Bensin & Transportasi') return 'Fuel & Transportation';
-                if (name === 'Jasa Rutin & Laundry') return 'Routine House Services';
-                if (name === 'Dana Jajan, Boba & Es Kopi') return 'Play Fund & Dining Out';
-                if (name === 'Gaya Hidup & Wellness') return 'Wellness & Self-Care';
-                if (name === 'Hobi Lapangan & Tenis') return 'Hobbies & Leisure';
-                if (name === 'Unallocated Transit') return 'Unallocated Capital';
-                return name;
-              };
-              const mapIndonesianToEnglishDescription = (desc?: string): string => {
-                if (!desc) return '';
-                if (desc === 'Aturan Karantina 2.5%') return 'Charitable allocation of 2.5%';
-                if (desc === 'Investasi otomatis luar anggaran') return 'Automated wealth builder outside core budget';
-                if (desc === 'Kas siap investasi (Dry Powder)') return 'Cash ready for deployment (Dry Powder)';
-                if (desc === 'Dana Darurat & Warisan Keluarga') return 'Emergency fund & family legacy cache';
-                if (desc === 'Pajak terpotong otomatis PPh 21/23.') return 'Tax withheld automatically on PPh 21/23.';
-                if (desc === 'Gaji ART, supir, dll.') return 'ART, driver salary, housekeeping';
-                if (desc === 'Cicilan KPR / Sewa Rumah Compound') return 'Mortgage payments / lease on joint property';
-                if (desc === 'Listrik, WiFi, Air') return 'Electricity, fiber optic WiFi, water bills';
-                if (desc === 'Dana bulanan khsusus untuk pelunasan pinjaman aktif & KPR.') return 'Cumulative monthly installments due on active asset loans.';
-                if (desc === 'Kebutuhan Dapur & Bahan Pokok') return 'Kitchen purchases & wholesale ingredients';
-                if (desc === 'Bensin, Tol, Servis Mobil') return 'Fuel, tolls, car servicing & parking';
-                if (desc === 'Laundry, galon air, gas') return 'Laundry, water delivery, gas refills';
-                if (desc === 'Es kopi, boba, GrabFood & jajan santai') return 'Boba tea, dine out, snacks, and casual delivery';
-                if (desc === 'Wellness, Gym, Salon, Spa') return 'Wellness, gym memberships, salon, and spa';
-                if (desc === 'Olahraga, Tenis Court, Racket Restring') return 'Sports, tennis court, racket restringing, gear';
-                return desc;
-              };
-              Object.keys(saved.pockets).forEach(key => {
-                  const p = saved.pockets[key];
-                  if (p) {
-                      p.name = mapIndonesianToEnglishPocket(p.name);
-                      p.description = mapIndonesianToEnglishDescription(p.description);
-                  }
-              });
-          }
-          setState(prev => ({ ...prev, ...saved }));
-      }
-  }, []);
+      if (!householdCtx) return;
 
-  useEffect(() => {
-      saveState(state);
-      
-      // AUTO-CALCULATE DEBT SERVICE TARGET
+      saveLocalCache(householdCtx.householdId, state);
+      const timeout = setTimeout(() => {
+          pushHouseholdState(householdCtx, state).catch(e => console.error('Household sync push failed', e));
+      }, 800);
+
+      // AUTO-CALCULATE DEBT SERVICE TARGET. Only touches the pocket if it
+      // already exists -- a fresh household has no pockets yet, and
+      // handlePocketUpdate spreads `state.pockets[id]` verbatim, so calling
+      // it on a missing id would silently create a malformed pocket with no
+      // id/name/group (which then crashes anything that renders it).
+      const debtServicePocket = state.pockets[PocketType.DEBT_SERVICE];
       const monthlyDebtService = state.liabilities.reduce((acc, l) => acc + l.monthlyPayment, 0);
-      if (state.pockets[PocketType.DEBT_SERVICE]?.target !== monthlyDebtService) {
+      if (debtServicePocket && debtServicePocket.target !== monthlyDebtService) {
           handlePocketUpdate(PocketType.DEBT_SERVICE, { target: monthlyDebtService });
       }
 
-  }, [state.pockets, state.fortressGoals, state.user, state.partner, state.liabilities]);
+      return () => clearTimeout(timeout);
+  }, [householdCtx, state.pockets, state.transactions, state.fortressGoals, state.user, state.partner, state.liabilities, state.recurringObligations, state.lifeCards, state.advisorChatHistory, state.history, state.settings, state.settlementBalance, state.privateReserves]);
 
   // --- HARDWARE BACK BUTTON LOGIC ---
   useEffect(() => {
@@ -1411,6 +1403,7 @@ const App: React.FC = () => {
       return `flex flex-col items-center gap-1 w-full py-1.5 rounded-2xl transition-all duration-300 active:scale-95 ${isActive ? 'text-sage-700 bg-sage-50 font-bold' : 'text-sand-500 hover:text-sand-900 font-medium'}`;
   };
 
+  if (!householdCtx) return <AuthGate onReady={handleAuthReady} />;
   if (!state.user) return null;
 
   return (
@@ -1495,6 +1488,10 @@ const App: React.FC = () => {
               
               <button onClick={() => setShowControlTower(true)} title="System Control Tower" className="p-1.5 md:p-2 bg-sand-100 border border-sand-200 rounded-lg hover:border-sage-600 transition-colors text-sand-900 active:scale-95 hover:bg-sand-200/50">
                   <SettingsIcon size={13} />
+              </button>
+
+              <button onClick={() => signOut()} title="Sign Out" className="p-1.5 md:p-2 bg-sand-100 border border-sand-200 rounded-lg hover:border-rose-400 transition-colors text-sand-900 active:scale-95 hover:bg-sand-200/50">
+                  <LogOut size={13} />
               </button>
           </div>
       </div>

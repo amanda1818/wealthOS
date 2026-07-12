@@ -14,7 +14,7 @@ interface PocketCardProps {
 }
 
 export const getPocketName = (pocket: { id: string; name: string }, language: 'EN' | 'ID') => {
-  const normId = pocket.id.toLowerCase();
+  const normId = (pocket.id || '').toLowerCase();
   if (language === 'EN') {
     if (normId.includes('zakat')) return 'Zakat & Charitable Giving';
     if (normId.includes('growth')) return 'Future Investments (Growth Engine)';
@@ -93,7 +93,7 @@ export const getPocketName = (pocket: { id: string; name: string }, language: 'E
 };
 
 export const getPocketDescription = (pocket: { id: string; description?: string }, language: 'EN' | 'ID') => {
-  const normId = pocket.id.toLowerCase();
+  const normId = (pocket.id || '').toLowerCase();
   if (language === 'EN') {
     if (normId.includes('zakat')) return 'Charitable allocation of 2.5%';
     if (normId.includes('growth')) return 'Automated wealth builder outside core budget';

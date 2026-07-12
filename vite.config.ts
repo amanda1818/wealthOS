@@ -10,9 +10,14 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
       },
       plugins: [react()],
+      // GEMINI_API_KEY is intentionally never defined here: it must only ever
+      // exist as a Supabase Edge Function secret (`supabase secrets set
+      // GEMINI_API_KEY=...`), never in a client bundle. SUPABASE_ANON_KEY is
+      // safe to ship to the client -- it's meaningless without RLS, which is
+      // what actually protects the data.
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+        'process.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL),
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY)
       },
       resolve: {
         alias: {

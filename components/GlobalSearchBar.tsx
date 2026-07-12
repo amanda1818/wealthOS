@@ -35,8 +35,8 @@ const GlobalSearchBar: React.FC<GlobalSearchBarProps> = ({ transactions, onFilte
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [wrapperRef]);
 
-  const filteredMerchants = merchants.filter(m => m.toLowerCase().includes(query.toLowerCase()));
-  const filteredTags = tagsList.filter(t => t.toLowerCase().includes(query.toLowerCase()));
+  const filteredMerchants = merchants.filter(m => (m || '').toLowerCase().includes(query.toLowerCase()));
+  const filteredTags = tagsList.filter(t => (t || '').toLowerCase().includes(query.toLowerCase()));
 
   const handleClearFilters = () => {
     setQuery('');
