@@ -35,12 +35,15 @@ const WaterfallTier: React.FC<WaterfallTierProps> = ({ level, title, subtitle, p
   const fillPercentage = totalTarget > 0 ? Math.min((currentFilled / totalTarget) * 100, 100) : (currentFilled > 0 ? 100 : 0);
   const isComplete = fillPercentage >= 100;
 
-  // Resolve Lead Name
+  // Resolve Lead Name. 'user_her'/'user_his' are fixed household slots (her =
+  // CFO/creator, his = the other member) -- not tied to which one happens to
+  // be `user` for the current viewer, so match by id rather than assuming
+  // user_his always means "partner".
   const getLeadLabel = (pocket: Pocket) => {
-      if (pocket.leadId === 'JOINT') return language === 'ID' ? 'Bersama' : 'Joint';
-      if (pocket.leadId === 'user_his') return partner?.name || (language === 'ID' ? 'Suami' : 'His');
-      if (pocket.leadId === 'user_her') return user?.name || (language === 'ID' ? 'Istri' : 'Her');
-      return language === 'ID' ? 'Bersama' : 'Joint';
+      if (!pocket.leadId || pocket.leadId === 'JOINT') return language === 'ID' ? 'Bersama' : 'Joint';
+      if (user?.id === pocket.leadId) return user?.name || (language === 'ID' ? 'Anda' : 'You');
+      if (partner?.id === pocket.leadId) return partner?.name || (language === 'ID' ? 'Pasangan' : 'Partner');
+      return pocket.leadId === 'user_her' ? 'Partner A' : 'Partner B';
   };
 
   const getLeadColor = (pocket: Pocket) => {

@@ -11,6 +11,8 @@ interface PocketCardProps {
   language?: 'EN' | 'ID';
   userName?: string;
   partnerName?: string;
+  userId?: string;
+  partnerId?: string;
 }
 
 export const getPocketName = (pocket: { id: string; name: string }, language: 'EN' | 'ID') => {
@@ -133,7 +135,7 @@ export const getPocketDescription = (pocket: { id: string; description?: string 
   }
 };
 
-const PocketCard: React.FC<PocketCardProps> = ({ pocket, compact = false, activeLens = 'JOINT', onClick, language = 'EN', userName = 'Victoria', partnerName = 'David' }) => {
+const PocketCard: React.FC<PocketCardProps> = ({ pocket, compact = false, activeLens = 'JOINT', onClick, language = 'EN', userName = 'Partner A', partnerName = 'Partner B', userId, partnerId }) => {
   const formatIDR = (num: number) => {
     if ((window as any).privacyShieldActive) return "Rp ••••••";
     return new Intl.NumberFormat(language === 'ID' ? 'id-ID' : 'en-US', {
@@ -188,12 +190,18 @@ const PocketCard: React.FC<PocketCardProps> = ({ pocket, compact = false, active
       ? 'text-amber-700 font-bold' 
       : 'text-wealth-text';
 
-  // Lead Badge Logic
+  // Lead Badge Logic. 'user_her'/'user_his' are fixed household slots (her =
+  // CFO/creator, his = the other member) -- not necessarily whoever passed
+  // in as `userName` for the current viewer, so match by id when available.
   const getLeadLabel = () => {
-      if (pocket.leadId === 'JOINT') return 'Joint';
-      if (pocket.leadId === 'user_his') return partnerName;
-      if (pocket.leadId === 'user_her') return userName;
-      return null;
+      if (!pocket.leadId || pocket.leadId === 'JOINT') return 'Joint';
+      if (userId && userId === pocket.leadId) return userName;
+      if (partnerId && partnerId === pocket.leadId) return partnerName;
+      if (!userId && !partnerId) {
+          if (pocket.leadId === 'user_his') return partnerName;
+          if (pocket.leadId === 'user_her') return userName;
+      }
+      return pocket.leadId === 'user_her' ? 'Partner A' : 'Partner B';
   };
 
   const getLeadColor = () => {

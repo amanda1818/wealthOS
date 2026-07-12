@@ -103,10 +103,16 @@ const ControlTower: React.FC<ControlTowerProps> = ({
         onUpdatePocket(pocket.id, { leadId: nextLead });
     };
 
+    // 'user_her'/'user_his' are fixed household slots (her = CFO/creator, his =
+    // the other member) -- NOT tied to which one happens to be state.user for
+    // the current viewer. Resolve by matching id, so both partners see the
+    // correct real name for a lead, not whichever of "you"/"partner" the old
+    // code assumed.
     const getGuardianLabel = (leadId?: string) => {
-        if (leadId === 'JOINT') return 'Joint';
-        if (leadId === 'user_his') return state.partner?.name || 'His';
-        return state.user?.name || 'Her';
+        if (leadId === 'JOINT' || !leadId) return language === 'ID' ? 'Bersama' : 'Joint';
+        if (state.user?.id === leadId) return state.user?.name || (language === 'ID' ? 'Anda' : 'You');
+        if (state.partner?.id === leadId) return state.partner?.name || (language === 'ID' ? 'Pasangan' : 'Partner');
+        return leadId === 'user_her' ? 'Partner A' : 'Partner B';
     };
 
     const renderPactCard = (user: User | null) => {
@@ -188,7 +194,7 @@ const ControlTower: React.FC<ControlTowerProps> = ({
     const groups: PocketGroup[] = ['SANCTUARY', 'DAILY', 'LIFESTYLE', 'WEALTH'];
 
     return (
-        <div className="fixed inset-0 z-[100] bg-wealth-bg flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed inset-0 z-[1050] bg-wealth-bg flex flex-col animate-in slide-in-from-bottom-4 duration-300">
             {/* Header */}
             <div className="bg-wealth-panel p-6 border-b border-wealth-border flex justify-between items-center shrink-0 shadow-sm z-20">
                 <div className="flex items-center gap-3">
@@ -200,8 +206,15 @@ const ControlTower: React.FC<ControlTowerProps> = ({
                         <p className="text-xs text-wealth-muted uppercase tracking-widest font-bold mt-1">Governance & Architecture</p>
                     </div>
                 </div>
-                <button onClick={onClose} className="p-2 hover:bg-black/5 rounded-full transition-colors text-wealth-text">
-                    <X size={24} />
+                <button
+                    onClick={onClose}
+                    title={language === 'ID' ? 'Kembali ke Dasbor' : 'Back to Dashboard'}
+                    className="flex items-center gap-1.5 pl-3 pr-2 py-2 hover:bg-black/5 rounded-full transition-colors text-wealth-text border border-wealth-border shrink-0"
+                >
+                    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest text-wealth-muted">
+                        {language === 'ID' ? 'Kembali' : 'Back'}
+                    </span>
+                    <X size={22} />
                 </button>
             </div>
 

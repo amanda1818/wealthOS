@@ -94,12 +94,14 @@ const IndividualSanctuary: React.FC<IndividualSanctuaryProps> = ({ state, onPriv
                 <div className="grid grid-cols-2 gap-3">
                     {privatePockets.map(p => (
                         <div key={p.id} className={isPrivateMode ? 'blur-sm select-none' : ''}>
-                             <PocketCard 
-                                pocket={p} 
-                                compact 
-                                onClick={onPocketClick} 
-                                userName={state.user?.name} 
-                                partnerName={state.partner?.name} 
+                             <PocketCard
+                                pocket={p}
+                                compact
+                                onClick={onPocketClick}
+                                userName={state.user?.name}
+                                partnerName={state.partner?.name}
+                                userId={state.user?.id}
+                                partnerId={state.partner?.id}
                              />
                         </div>
                     ))}

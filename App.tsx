@@ -1404,9 +1404,21 @@ const App: React.FC = () => {
 
   
   const getBgClass = () => {
-      if (activeLens === 'HER') return 'bg-[#F0FDF4]/30'; 
-      if (activeLens === 'HIS') return 'bg-[#F8FAFC]/50'; 
-      return 'bg-wealth-bg'; 
+      if (activeLens === 'HER') return 'bg-[#F0FDF4]/30';
+      if (activeLens === 'HIS') return 'bg-[#F8FAFC]/50';
+      return 'bg-wealth-bg';
+  };
+
+  // Lens labels are resolved per-viewer, not per-string: 'HER' is always the
+  // slot the household's CFO/creator occupies, 'HIS' the other member's slot
+  // (see services/syncService.ts). Depending on who is logged in, "HER" can
+  // mean state.user OR state.partner -- so we match by id, not by literal.
+  const getLensLabel = (lens: LensType): string => {
+      if (lens === 'JOINT') return language === 'ID' ? 'Bersama' : 'Together';
+      const slot = lens === 'HER' ? 'user_her' : 'user_his';
+      if (state.user?.id === slot) return state.user?.name || (language === 'ID' ? 'Anda' : 'You');
+      if (state.partner?.id === slot) return state.partner?.name || (language === 'ID' ? 'Pasangan' : 'Partner');
+      return slot === 'user_her' ? 'Partner A' : 'Partner B';
   };
 
   const bentoSanctuaryTotal = pocketsList.filter(p => p.group === 'SANCTUARY').reduce((acc, p) => acc + p.balance, 0);
@@ -1463,13 +1475,14 @@ const App: React.FC = () => {
                   <button
                     key={lens}
                     onClick={() => setActiveLens(lens)}
-                    className={`px-2.5 py-1 md:px-4 md:py-1.5 rounded-lg text-[8px] md:text-[9.5px] font-mono font-bold uppercase tracking-widest transition-all active:scale-95 ${
-                        activeLens === lens 
-                        ? (lens === 'HER' ? 'bg-sage-600 text-white shadow-sm' : lens === 'HIS' ? 'bg-sand-850 text-white shadow-sm' : 'bg-sage-600 text-white shadow-sm') 
+                    title={getLensLabel(lens)}
+                    className={`max-w-[6.5rem] truncate px-2.5 py-1 md:px-4 md:py-1.5 rounded-lg text-[8px] md:text-[9.5px] font-mono font-bold uppercase tracking-widest transition-all active:scale-95 ${
+                        activeLens === lens
+                        ? (lens === 'HER' ? 'bg-sage-600 text-white shadow-sm' : lens === 'HIS' ? 'bg-sand-850 text-white shadow-sm' : 'bg-sage-600 text-white shadow-sm')
                         : 'text-sand-500 hover:text-sand-950 hover:bg-black/5'
                     }`}
                   >
-                      {lens}
+                      {getLensLabel(lens)}
                   </button>
               ))}
           </div>
@@ -1936,9 +1949,11 @@ const App: React.FC = () => {
             onClose={() => setSelectedPocket(null)} 
             onUpdate={handlePocketUpdate} 
             onDelete={handleDeletePocket} 
-            onAddTransaction={handleAddTransaction} 
-            onDeleteTransaction={handleDeleteTransaction} 
+            onAddTransaction={handleAddTransaction}
+            onDeleteTransaction={handleDeleteTransaction}
             language={language}
+            userName={state.user?.name}
+            partnerName={state.partner?.name}
           />
       )}
       

@@ -14,9 +14,11 @@ interface PocketDetailProps {
   onAddTransaction: (tx: Transaction, targetGoalId?: string) => void;
   onDeleteTransaction: (tx: Transaction) => void;
   language?: 'EN' | 'ID';
+  userName?: string;
+  partnerName?: string;
 }
 
-const PocketDetail: React.FC<PocketDetailProps> = ({ pocket, transactions, fortressGoals, onClose, onUpdate, onDelete, onAddTransaction, onDeleteTransaction, language = 'EN' }) => {
+const PocketDetail: React.FC<PocketDetailProps> = ({ pocket, transactions, fortressGoals, onClose, onUpdate, onDelete, onAddTransaction, onDeleteTransaction, language = 'EN', userName, partnerName }) => {
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [newBalance, setNewBalance] = useState(pocket.balance.toString());
   
@@ -149,13 +151,13 @@ const PocketDetail: React.FC<PocketDetailProps> = ({ pocket, transactions, fortr
             </div>
             
             <div className="flex items-center gap-2">
-                <button 
+                <button
                     onClick={handleToggleLead}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase transition-all ${pocket.leadId === 'user_her' ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
                     title="Toggle Responsible Guardian"
                 >
                     {pocket.leadId === 'user_her' ? <User size={12}/> : <Users size={12}/>}
-                    {pocket.leadId === 'user_her' ? 'Her Lead' : 'His Lead'}
+                    {pocket.leadId === 'user_her' ? (userName || 'Partner A') : (partnerName || 'Partner B')} Lead
                 </button>
                 <button 
                     onClick={() => { if(confirm("Permanently delete this pocket?")) onDelete(pocket.id); }}

@@ -28,8 +28,8 @@ const Ledger: React.FC<LedgerProps> = ({
   history, 
   activeLens, 
   liveTransactions = [], 
-  userName = 'Victoria', 
-  partnerName = 'David',
+  userName = 'Partner A',
+  partnerName = 'Partner B',
   onSettleClaim,
   onSettleClientReimbursement,
   language = 'EN',
@@ -376,8 +376,8 @@ const Ledger: React.FC<LedgerProps> = ({
                     className="w-full pl-2 pr-4 py-1.5 text-[10px] font-mono bg-[#FAF9F5] border border-stone-200 rounded-lg focus:outline-none focus:border-[#06402B] focus:bg-white text-stone-900 appearance-none cursor-pointer"
                   >
                     <option value="all">{language === 'ID' ? 'Semua Jenis Rujukan' : 'All Claims status'}</option>
-                    <option value="reimbursables">{language === 'ID' ? 'Klaim Klien Victoria' : `Victoria Client Claims`}</option>
-                    <option value="partner_split">{language === 'ID' ? 'Talangan David' : `David Shared Splits`}</option>
+                    <option value="reimbursables">{language === 'ID' ? `Klaim Klien ${userName}` : `${userName} Client Claims`}</option>
+                    <option value="partner_split">{language === 'ID' ? `Talangan ${partnerName}` : `${partnerName} Shared Splits`}</option>
                     <option value="any_claim">{language === 'ID' ? 'Seluruh Piutang Aktif' : 'Any Pending Reminders'}</option>
                   </select>
                   <span className="absolute inset-y-0 right-0 pr-2 pointer-events-none flex items-center text-stone-400 text-[8px]">▼</span>
