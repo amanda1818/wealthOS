@@ -168,7 +168,10 @@ const ControlTower: React.FC<ControlTowerProps> = ({
             target: parseFloat(newPocketTarget) || 0,
             group: newPocketGroup,
             behavior: (newPocketGroup === 'SANCTUARY' || newPocketGroup === 'WEALTH') ? 'COMMITMENT' : 'BUDGET',
-            leadId: 'user_her', 
+            // Nobody specifically manages a new pocket until someone claims it
+            // via the guardian-cycle toggle -- don't default every pocket
+            // either partner creates to the household creator's slot.
+            leadId: 'JOINT',
             description: 'Custom Pocket'
         };
         onCreatePocket(pocket);
