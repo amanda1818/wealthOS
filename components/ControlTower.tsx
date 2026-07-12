@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AppState, PocketType, Pocket, User, Liability, FortressGoal, PocketGroup, PocketBehavior } from '../types';
-import { Shield, Settings, Archive, ArrowRight, Plus, Trash2, Landmark, Globe, Scale, Users, User as UserIcon, X, Check, Edit2, PenLine, Save, RefreshCw, Copy, UserPlus } from 'lucide-react';
+import { Shield, Settings, Archive, ArrowRight, Plus, Trash2, Landmark, Globe, Scale, Users, User as UserIcon, X, Check, Edit2, PenLine, Save, RefreshCw, Copy, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { getHouseholdInviteCode, regenerateInviteCode } from '../services/authService';
 
 interface ControlTowerProps {
@@ -271,6 +271,36 @@ const ControlTower: React.FC<ControlTowerProps> = ({
                                     {language === 'ID' ? 'Hanya pemilik household yang dapat membuat ulang kode.' : 'Only the household owner can regenerate the code.'}
                                 </p>
                             )}
+                        </div>
+
+                        {/* Personal balance visibility -- one toggle, enforced at the RLS
+                            layer (migration 0003), not just hidden in this UI. */}
+                        <div className="bg-wealth-panel p-5 rounded-xl border border-wealth-border shadow-sm space-y-3">
+                            <h3 className="text-xs font-bold text-sand-900 uppercase flex items-center justify-between font-mono tracking-wider">
+                                <div className="flex items-center gap-2">
+                                    {state.settings?.balanceVisibility === 'PRIVATE' ? <EyeOff size={14} className="text-wealth-emerald" /> : <Eye size={14} className="text-wealth-emerald" />}
+                                    <span>{language === 'ID' ? 'VISIBILITAS SALDO PRIBADI' : 'PERSONAL BALANCE VISIBILITY'}</span>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer select-none">
+                                    <input
+                                        type="checkbox"
+                                        className="sr-only peer"
+                                        checked={state.settings?.balanceVisibility !== 'PRIVATE'}
+                                        onChange={(e) => onUpdateSettings({ ...state.settings, balanceVisibility: e.target.checked ? 'TRANSPARENT' : 'PRIVATE' })}
+                                    />
+                                    <div className="w-8 h-4 bg-stone-200 rounded-full peer peer-checked:bg-wealth-emerald relative after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-4"></div>
+                                </label>
+                            </h3>
+                            <p className="text-[10px] text-wealth-muted leading-relaxed font-sans">
+                                {state.settings?.balanceVisibility === 'PRIVATE'
+                                    ? (language === 'ID'
+                                        ? 'Privat: saldo pribadi masing-masing (termasuk Cadangan Pribadi) hanya terlihat oleh pemiliknya sendiri. Pasangan Anda melihat "—" saat beralih ke tampilan Anda, dan sebaliknya. Tampilan Bersama tetap terlihat oleh keduanya.'
+                                        : 'Private: each partner\'s personal balance (including their Private Reserve) is visible only to them. Your partner sees "—" when switching to your view, and vice versa. The Together view stays visible to both.')
+                                    : (language === 'ID'
+                                        ? 'Transparan: Anda dan pasangan dapat saling melihat saldo pribadi masing-masing di ketiga tampilan.'
+                                        : 'Transparent: you and your partner can see each other\'s personal balance in all three views.')
+                                }
+                            </p>
                         </div>
 
                         {/* Each person's own name, labeled from their own record -- never a

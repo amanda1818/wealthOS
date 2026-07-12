@@ -263,6 +263,7 @@ export const pushHouseholdState = async (ctx: HouseholdContext, state: AppState)
     custom_shared_splits_title: settings.customSharedSplitsTitle ?? null,
     show_client_reimbursements: settings.showClientReimbursements ?? true,
     show_partner_splits: settings.showPartnerSplits ?? true,
+    balance_visibility: settings.balanceVisibility ?? 'TRANSPARENT',
     settlement_balance: state.settlementBalance,
     updated_at: now,
   }, { onConflict: 'household_id' });
@@ -436,14 +437,18 @@ export const pullHouseholdState = async (ctx: HouseholdContext): Promise<Partial
     customSharedSplitsTitle: settingsRow.custom_shared_splits_title ?? undefined,
     showClientReimbursements: settingsRow.show_client_reimbursements,
     showPartnerSplits: settingsRow.show_partner_splits,
+    balanceVisibility: settingsRow.balance_visibility ?? 'TRANSPARENT',
   } : undefined;
 
-  // RLS restricts private_reserves to the caller's own row -- a partner's
-  // reserve is never fetchable, by construction, not by client-side filtering.
-  const selfSlot = uuidToSlot(members, ctx.memberId);
+  // RLS decides what's in reserveRes.data, not this code: in PRIVATE mode it
+  // contains only the caller's own row, in TRANSPARENT mode it also contains
+  // the partner's -- either way, map whatever rows actually came back. A
+  // slot with no row (private mode, viewing the partner) simply stays absent
+  // from the map, which the UI renders as hidden rather than a real zero.
   const privateReserves: Record<string, number> = {};
   (reserveRes.data ?? []).forEach((row: any) => {
-    if (row.owner_user_id === ctx.memberId) privateReserves[selfSlot] = Number(row.amount);
+    const slot = uuidToSlot(members, row.owner_user_id);
+    privateReserves[slot] = Number(row.amount);
   });
 
   const { user, partner } = getUserAndPartner(ctx);

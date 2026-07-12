@@ -51,7 +51,8 @@ const INITIAL_SETTINGS: PocketSettings = {
     showClaimsDesk: true,
     customClaimsDeskTitle: 'Claims & Reimbursements Desk',
     customClientClaimsTitle: 'Client Claims',
-    customSharedSplitsTitle: 'Shared Splits'
+    customSharedSplitsTitle: 'Shared Splits',
+    balanceVisibility: 'TRANSPARENT'
 };
 
 const INITIAL_STATE: AppState = {
@@ -1358,11 +1359,15 @@ const App: React.FC = () => {
   };
 
   // --- TRINARY LENS CALCULATIONS ---
+  // lensSlot is null for JOINT (no filter -- everything counts once, combined).
+  // For HER/HIS it's the fixed household slot ('user_her' = CFO/creator,
+  // 'user_his' = the other member) that scopes every figure below to that
+  // one person's own pockets/goals/receivables/reserve.
   const pocketsList = Object.values(state.pockets) as Pocket[];
+  const lensSlot: 'user_her' | 'user_his' | null = activeLens === 'JOINT' ? null : activeLens === 'HER' ? 'user_her' : 'user_his';
   const filterPocketsByLens = (pockets: Pocket[]) => {
-      if (activeLens === 'JOINT') return pockets;
-      const targetLead = activeLens === 'HER' ? 'user_her' : 'user_his';
-      return pockets.filter(p => p.leadId === targetLead || p.leadId === 'JOINT');
+      if (!lensSlot) return pockets;
+      return pockets.filter(p => p.leadId === lensSlot || p.leadId === 'JOINT');
   };
   const getPrivateReserve = (lens: LensType) => {
       if (lens === 'JOINT') return 0;
@@ -1371,26 +1376,42 @@ const App: React.FC = () => {
   };
 
   const visiblePockets = filterPocketsByLens(pocketsList);
+  const privateReserveForLens = getPrivateReserve(activeLens);
   const sharedLiquidity = visiblePockets.filter(p => p.group === 'DAILY' || p.group === 'LIFESTYLE').reduce((acc, p) => acc + Math.max(0, p.balance), 0);
-  const monthlyLiquidity = sharedLiquidity + getPrivateReserve(activeLens);
+  const monthlyLiquidity = sharedLiquidity + privateReserveForLens;
   const monthlyCommitments = visiblePockets.filter(p => p.group === 'SANCTUARY').reduce((acc, p) => acc + (p.target || 0), 0);
 
   const filteredGoals = state.fortressGoals.filter(g => {
-      if (activeLens === 'JOINT') return true;
-      const owner = activeLens === 'HER' ? 'user_her' : 'user_his';
-      return g.ownerId === 'JOINT' || g.ownerId === owner;
+      if (!lensSlot) return true;
+      return g.ownerId === 'JOINT' || g.ownerId === lensSlot;
   });
-  const totalGoalAssets = filteredGoals.reduce((acc, g) => acc + g.currentAmount, 0); 
-  const investmentCash = state.pockets[PocketType.INVESTMENT_CASH]?.balance || 0;
-  const totalCash = pocketsList.filter(p => p.group !== 'WEALTH').reduce((acc, p) => acc + p.balance, 0); 
+  const totalGoalAssets = filteredGoals.reduce((acc, g) => acc + g.currentAmount, 0);
+  // Every input below is now scoped to visiblePockets/lensSlot, so the hero
+  // "Consolidated Assets" figure actually differs per lens instead of always
+  // showing the same household-wide total regardless of which view is active.
+  const investmentCash = visiblePockets.find(p => p.id === PocketType.INVESTMENT_CASH)?.balance || 0;
+  const totalCash = visiblePockets.filter(p => p.group !== 'WEALTH').reduce((acc, p) => acc + p.balance, 0);
+  // Liabilities carry no per-partner owner in the data model -- shared debt
+  // reduces heritage the same way in every lens rather than being split.
   const systemBurden = state.liabilities.reduce((acc, l) => acc + l.remainingAmount, 0);
-  const totalReceivables = state.transactions.filter(t => t.status === 'PARTNER_RECEIVABLE').reduce((acc, t) => acc + (t.receivableAmount || 0), 0);
-  const totalHeritage = (totalGoalAssets + investmentCash + totalCash + totalReceivables) - systemBurden;
-  const dailyOpsTarget = pocketsList.filter(p => p.group === 'DAILY').reduce((acc, p) => acc + (p.target || 0), 0);
+  const totalReceivables = state.transactions
+      .filter(t => t.status === 'PARTNER_RECEIVABLE' && (!lensSlot || t.ownerId === lensSlot))
+      .reduce((acc, t) => acc + (t.receivableAmount || 0), 0);
+  const totalHeritage = (totalGoalAssets + investmentCash + totalCash + totalReceivables + privateReserveForLens) - systemBurden;
+  const dailyOpsTarget = visiblePockets.filter(p => p.group === 'DAILY').reduce((acc, p) => acc + (p.target || 0), 0);
   const monthlyBurn = monthlyCommitments + dailyOpsTarget;
-  const monthlyPassive = (totalGoalAssets * 0.04) / 12; 
+  const monthlyPassive = (totalGoalAssets * 0.04) / 12;
   const sovereigntyGap = monthlyBurn - monthlyPassive;
-  
+
+  // Personal-balance privacy: household_settings.balanceVisibility. In
+  // PRIVATE mode, the partner's own private_reserves row is already absent
+  // at the RLS layer (see migration 0003) -- this additionally masks the
+  // *whole* hero figure while viewing their lens, rather than showing a
+  // partial number that mixes real shared-pocket cash with a silently-zeroed
+  // reserve. Never hides your own lens or the Joint view.
+  const isViewingPartnerLens = !!lensSlot && lensSlot !== state.user?.id;
+  const isBalanceHiddenForLens = isViewingPartnerLens && state.settings.balanceVisibility === 'PRIVATE';
+
   const [dashboardMonth, setDashboardMonth] = useState<string>(new Date().toISOString().substring(0, 7));
 
   // Calculate Actual Spend For This Month based on dashboardMonth
@@ -1633,6 +1654,7 @@ const App: React.FC = () => {
                                   dashboardMonth={dashboardMonth}
                                   onMonthChange={setDashboardMonth}
                                   language={language}
+                                  balanceHidden={isBalanceHiddenForLens}
                             />
                             
                             <div className={isPremium ? "" : "relative overflow-hidden rounded-[2.5rem]"}>

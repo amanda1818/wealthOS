@@ -61,6 +61,10 @@ export interface PocketSettings {
   customSharedSplitsTitle?: string;
   showClientReimbursements?: boolean;
   showPartnerSplits?: boolean;
+  // Household-level: whether a partner's personal balance (private reserve +
+  // their lens's totals) is visible to the other partner. Enforced at the
+  // Supabase RLS layer, not just hidden in the UI -- see migration 0003.
+  balanceVisibility?: 'TRANSPARENT' | 'PRIVATE';
 }
 
 export interface Liability {

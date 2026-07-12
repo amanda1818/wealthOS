@@ -19,15 +19,20 @@ interface ExecutiveDashboardProps {
     onMonthChange?: (month: string) => void;
     language?: 'EN' | 'ID';
     fortressGoals?: FortressGoal[];
+    // True while viewing the partner's lens with the household set to
+    // PRIVATE balance visibility. Masks every figure on this screen with
+    // "--" rather than showing a partial number.
+    balanceHidden?: boolean;
 }
 
-const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({ 
-    monthlyLiquidity, monthlyCommitments, totalHeritage, systemBurden, 
+const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
+    monthlyLiquidity, monthlyCommitments, totalHeritage, systemBurden,
     sovereigntyGap, monthlyPassive, monthlyBurn, totalReceivables = 0, privateReserve = 0,
     actualSpendThisMonth = 0, totalAllocatedThisMonth = 0, currentMonthName = '',
     dashboardMonth, onMonthChange,
     language = 'EN',
     fortressGoals = [],
+    balanceHidden = false,
 }) => {
     const [showGapDetails, setShowGapDetails] = useState(false);
     const [showNetWorthDetails, setShowNetWorthDetails] = useState(false);
@@ -48,11 +53,13 @@ const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
     };
 
     const formatIDR = (num: number) => {
+        if (balanceHidden) return "—";
         if ((window as any).privacyShieldActive) return "••••••";
         return new Intl.NumberFormat(language === 'ID' ? 'id-ID' : 'en-US', { maximumFractionDigits: 0 }).format(num);
     };
 
     const formatCompact = (num: number) => {
+        if (balanceHidden) return "—";
         if ((window as any).privacyShieldActive) return "••••••";
         if (language === 'EN') {
             if (num >= 1000000000) {
