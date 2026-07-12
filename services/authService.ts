@@ -86,3 +86,11 @@ export const getHouseholdInviteCode = async (householdId: string): Promise<strin
   if (error) throw error;
   return data.invite_code as string;
 };
+
+// Owner-only (RLS-enforced inside the RPC): rotates the code so an old,
+// already-shared link/code stops working.
+export const regenerateInviteCode = async (householdId: string): Promise<string> => {
+  const { data, error } = await supabase.rpc('regenerate_invite_code', { p_household_id: householdId });
+  if (error) throw error;
+  return data as string;
+};

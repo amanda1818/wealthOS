@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppState, PocketType, Pocket, User, Liability, FortressGoal, PocketGroup, PocketBehavior } from '../types';
-import { Shield, Settings, Archive, ArrowRight, Plus, Trash2, Landmark, Globe, Scale, Users, User as UserIcon, X, Check, Edit2, PenLine, Save, RefreshCw } from 'lucide-react';
+import { Shield, Settings, Archive, ArrowRight, Plus, Trash2, Landmark, Globe, Scale, Users, User as UserIcon, X, Check, Edit2, PenLine, Save, RefreshCw, Copy, UserPlus } from 'lucide-react';
+import { getHouseholdInviteCode, regenerateInviteCode } from '../services/authService';
 
 interface ControlTowerProps {
   state: AppState;
+  householdId: string;
   onClose: () => void;
   onUpdatePact: (userId: string, strategy: { contribution: number, wealthRatio?: number }) => void;
   onUpdatePocket: (pocketId: string, updates: Partial<Pocket>) => void; // Consolidated Updater
@@ -20,12 +22,58 @@ interface ControlTowerProps {
   onLanguageChange?: (lang: 'EN' | 'ID') => void;
 }
 
-const ControlTower: React.FC<ControlTowerProps> = ({ 
-    state, onClose, onUpdatePact, onUpdatePocket, onUpdateSettings, 
+const ControlTower: React.FC<ControlTowerProps> = ({
+    state, householdId, onClose, onUpdatePact, onUpdatePocket, onUpdateSettings,
     onCreatePocket, onDeletePocket, onUpdateUser, onAddGoal, onDeleteGoal, onAddLiability,
     onSealMonth, language = 'EN', onLanguageChange
 }) => {
     const [activeSection, setActiveSection] = useState<'PACT' | 'ARCHITECT' | 'SYSTEM'>('PACT');
+
+    // Invite your partner
+    const isOwner = state.user?.role === 'CFO';
+    const [inviteCode, setInviteCode] = useState<string | null>(null);
+    const [inviteLoading, setInviteLoading] = useState(false);
+    const [inviteError, setInviteError] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (!householdId) return;
+        let mounted = true;
+        setInviteLoading(true);
+        getHouseholdInviteCode(householdId)
+            .then((code) => { if (mounted) setInviteCode(code); })
+            .catch((err) => { if (mounted) setInviteError(err.message || 'Failed to load invite code'); })
+            .finally(() => { if (mounted) setInviteLoading(false); });
+        return () => { mounted = false; };
+    }, [householdId]);
+
+    const handleCopyInviteCode = async () => {
+        if (!inviteCode) return;
+        try {
+            await navigator.clipboard.writeText(inviteCode);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch {
+            setInviteError('Could not copy -- select and copy the code manually.');
+        }
+    };
+
+    const handleRegenerateInviteCode = async () => {
+        if (!householdId) return;
+        if (!confirm(language === 'ID'
+            ? 'Kode lama akan berhenti berfungsi. Lanjutkan?'
+            : 'The old code will stop working. Continue?')) return;
+        setInviteLoading(true);
+        setInviteError(null);
+        try {
+            const code = await regenerateInviteCode(householdId);
+            setInviteCode(code);
+        } catch (err: any) {
+            setInviteError(err.message || 'Failed to regenerate invite code');
+        } finally {
+            setInviteLoading(false);
+        }
+    };
 
     // Pocket Creation State
     const [newPocketName, setNewPocketName] = useState('');
@@ -64,15 +112,15 @@ const ControlTower: React.FC<ControlTowerProps> = ({
     const renderPactCard = (user: User | null) => {
         if (!user) return null;
         const strategy = user.allocationStrategy || { contribution: 50, wealthRatio: 80 };
-        const isHer = user.id === 'user_her';
-        const colorClass = isHer ? 'accent-rose-700' : 'accent-slate-700';
-        const bgClass = isHer ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-200';
-        const textClass = isHer ? 'text-rose-800' : 'text-slate-800';
+        const isOwner = user.role === 'CFO';
+        const colorClass = isOwner ? 'accent-rose-700' : 'accent-slate-700';
+        const bgClass = isOwner ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-200';
+        const textClass = isOwner ? 'text-rose-800' : 'text-slate-800';
 
         return (
             <div className={`p-5 rounded-xl border ${bgClass} space-y-4 shadow-sm`}>
                 <div className="flex items-center gap-3">
-                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-serif font-bold text-xl text-white ${isHer ? 'bg-rose-700' : 'bg-slate-700'}`}>
+                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-serif font-bold text-xl text-white ${isOwner ? 'bg-rose-700' : 'bg-slate-700'}`}>
                         {user.avatar}
                     </div>
                     <div className="flex-1">
@@ -169,24 +217,75 @@ const ControlTower: React.FC<ControlTowerProps> = ({
                 {/* 1. THE PACT */}
                 {activeSection === 'PACT' && (
                     <div className="space-y-6 max-w-lg mx-auto animate-in slide-in-from-left-4 duration-300">
-                        {/* THE BECKHAM PAIR INPUTS */}
+                        {/* Invite your partner */}
+                        <div className="bg-wealth-panel p-5 rounded-xl border border-wealth-border shadow-sm space-y-3">
+                            <h3 className="text-sm font-bold text-wealth-text uppercase flex items-center gap-2">
+                                <UserPlus size={16} /> {language === 'ID' ? 'Undang Pasangan' : 'Invite your partner'}
+                            </h3>
+                            <p className="text-xs text-wealth-muted leading-relaxed">
+                                {language === 'ID'
+                                    ? 'Bagikan kode ini agar pasangan Anda bergabung dengan household yang sama.'
+                                    : "Share this code so your partner can join the same household."}
+                            </p>
+
+                            {inviteError && <p className="text-xs text-wealth-danger">{inviteError}</p>}
+
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-[#FAF9F5] border border-wealth-border rounded-lg px-3 py-2.5 font-mono font-bold tracking-widest text-wealth-text text-lg text-center select-all">
+                                    {inviteLoading && !inviteCode ? '········' : (inviteCode || '—')}
+                                </div>
+                                <button
+                                    onClick={handleCopyInviteCode}
+                                    disabled={!inviteCode || inviteLoading}
+                                    title={language === 'ID' ? 'Salin kode' : 'Copy code'}
+                                    className="p-2.5 bg-wealth-emerald text-white rounded-lg hover:bg-emerald-800 transition-colors disabled:opacity-50 shrink-0"
+                                >
+                                    {copied ? <Check size={16} /> : <Copy size={16} />}
+                                </button>
+                            </div>
+
+                            {isOwner ? (
+                                <button
+                                    onClick={handleRegenerateInviteCode}
+                                    disabled={inviteLoading}
+                                    className="flex items-center gap-1.5 text-[10px] text-wealth-muted hover:text-wealth-text uppercase font-bold tracking-widest transition-colors disabled:opacity-50"
+                                >
+                                    <RefreshCw size={11} className={inviteLoading ? 'animate-spin' : ''} />
+                                    {language === 'ID' ? 'Buat Ulang Kode' : 'Regenerate code'}
+                                </button>
+                            ) : (
+                                <p className="text-[10px] text-wealth-muted uppercase tracking-widest">
+                                    {language === 'ID' ? 'Hanya pemilik household yang dapat membuat ulang kode.' : 'Only the household owner can regenerate the code.'}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Each person's own name, labeled from their own record -- never a
+                            fixed "Her (CFO) / His" template, so both partners see themselves
+                            correctly regardless of who created the household. */}
                         <div className="flex gap-4">
                             <div className="flex-1">
-                                <label className="text-[10px] font-bold uppercase text-wealth-muted tracking-widest mb-1 block">Her Name (CFO)</label>
-                                <input 
-                                    type="text" 
-                                    value={state.user?.name || ''} 
+                                <label className="text-[10px] font-bold uppercase text-wealth-muted tracking-widest mb-1 block">
+                                    {language === 'ID' ? 'Nama Anda' : 'Your Name'} {state.user?.role === 'CFO' ? `(${language === 'ID' ? 'Pemilik' : 'Owner'})` : `(${language === 'ID' ? 'Anggota' : 'Member'})`}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={state.user?.name || ''}
                                     onChange={(e) => state.user && handleSaveUserEdit(state.user.id, e.target.value)}
                                     className="w-full bg-white border-b-2 border-rose-200 focus:border-rose-600 text-rose-900 font-serif font-bold text-xl p-2 focus:outline-none transition-colors"
                                 />
                             </div>
                             <div className="flex-1">
-                                <label className="text-[10px] font-bold uppercase text-wealth-muted tracking-widest mb-1 block">His Name</label>
-                                <input 
-                                    type="text" 
-                                    value={state.partner?.name || ''} 
+                                <label className="text-[10px] font-bold uppercase text-wealth-muted tracking-widest mb-1 block">
+                                    {language === 'ID' ? 'Nama Pasangan' : "Partner's Name"} {state.partner ? (state.partner.role === 'CFO' ? `(${language === 'ID' ? 'Pemilik' : 'Owner'})` : `(${language === 'ID' ? 'Anggota' : 'Member'})`) : ''}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={state.partner?.name || ''}
                                     onChange={(e) => state.partner && handleSaveUserEdit(state.partner.id, e.target.value)}
-                                    className="w-full bg-white border-b-2 border-slate-200 focus:border-slate-600 text-slate-900 font-serif font-bold text-xl p-2 focus:outline-none transition-colors"
+                                    placeholder={state.partner ? '' : (language === 'ID' ? 'Belum bergabung' : 'Not joined yet')}
+                                    disabled={!state.partner}
+                                    className="w-full bg-white border-b-2 border-slate-200 focus:border-slate-600 text-slate-900 font-serif font-bold text-xl p-2 focus:outline-none transition-colors disabled:opacity-50"
                                 />
                             </div>
                         </div>

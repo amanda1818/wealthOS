@@ -537,6 +537,18 @@ const App: React.FC = () => {
 
   const handleAuthReady = async (ctx: HouseholdContext, isFreshHousehold: boolean) => {
     setHouseholdCtx(ctx);
+    // Land every newly-authenticated session (creator or joining partner) on
+    // the main dashboard with a clean slate, even if a stale overlay from a
+    // previous session in this tab was still open.
+    setActiveTab('DASHBOARD');
+    setShowControlTower(false);
+    setShowRevenueModal(false);
+    setShowDeficitModal(false);
+    setShowPremiumModal(false);
+    setShowHeritageGuide(false);
+    setShowMobileConsole(false);
+    setIsChatOpen(false);
+    setSelectedPocket(null);
     try {
       const cached = loadLocalCache(ctx.householdId);
       if (cached) setState(prev => ({ ...prev, ...cached }));
@@ -556,11 +568,27 @@ const App: React.FC = () => {
 
   // AuthGate only listens for session changes while it's mounted (i.e. before
   // householdCtx resolves); this catches sign-out once the main app is showing.
+  // Resets every full-screen overlay too -- otherwise, testing two accounts in
+  // the same browser tab (sign out while e.g. ControlTower is open, sign the
+  // partner in) leaves that overlay stuck on top of the new session, and
+  // since it covers the whole screen, the nav underneath looks unresponsive.
   useEffect(() => {
       const sub = onAuthStateChange((session) => {
           if (!session) {
               setHouseholdCtx(null);
               setState(INITIAL_STATE);
+              setActiveTab('DASHBOARD');
+              setActiveLens('JOINT');
+              setShowControlTower(false);
+              setShowRevenueModal(false);
+              setShowDeficitModal(false);
+              setShowPremiumModal(false);
+              setShowHeritageGuide(false);
+              setShowMobileConsole(false);
+              setIsChatOpen(false);
+              setSelectedPocket(null);
+              setPreviousState(null);
+              setToast(null);
           }
       });
       return () => sub.unsubscribe();
@@ -853,7 +881,7 @@ const App: React.FC = () => {
       const tempPockets = { ...state.pockets };
       const newTransactions: Transaction[] = [];
       const nowString = new Date().toISOString();
-      const earnerName = ownerId === 'user_her' ? 'Victoria' : 'David';
+      const earnerName = ownerId === state.user?.id ? (state.user?.name || 'You') : (state.partner?.name || 'Partner');
       
       const taxPocket = tempPockets[PocketType.TAX_RESERVE];
       if (taxPocket) {
@@ -1829,8 +1857,8 @@ const App: React.FC = () => {
                       <div>
                           <label className="text-[9px] uppercase font-bold text-wealth-muted block mb-1">Earner</label>
                           <div className="flex gap-2">
-                              <button onClick={() => setRevenueForm({...revenueForm, owner: 'HER'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HER' ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-white border border-wealth-border'}`}>Her</button>
-                              <button onClick={() => setRevenueForm({...revenueForm, owner: 'HIS'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HIS' ? 'bg-slate-50 border border-slate-200 text-slate-700' : 'bg-white border border-wealth-border'}`}>His</button>
+                              <button onClick={() => setRevenueForm({...revenueForm, owner: 'HER'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HER' ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-white border border-wealth-border'}`}>{state.user?.name || 'You'}</button>
+                              <button onClick={() => setRevenueForm({...revenueForm, owner: 'HIS'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HIS' ? 'bg-slate-50 border border-slate-200 text-slate-700' : 'bg-white border border-wealth-border'}`}>{state.partner?.name || 'Partner'}</button>
                           </div>
                       </div>
                       <div>
@@ -1915,9 +1943,10 @@ const App: React.FC = () => {
       )}
       
       {showControlTower && (
-          <ControlTower 
-             state={state} 
-             onClose={() => setShowControlTower(false)} 
+          <ControlTower
+             state={state}
+             householdId={householdCtx?.householdId || ''}
+             onClose={() => setShowControlTower(false)}
              onUpdatePact={(id, s) => handleUpdateUser(id, { allocationStrategy: { ...state.user?.allocationStrategy, ...s } })} 
              onUpdatePocket={handlePocketUpdate} 
              onUpdateSettings={handleUpdateSettings} 
