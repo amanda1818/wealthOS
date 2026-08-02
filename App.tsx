@@ -17,7 +17,6 @@ import AdvisorChat from './components/AdvisorChat';
 import ActiveTasks from './components/ActiveTasks';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
 import IntelligenceDesk from './components/IntelligenceDesk';
-import { FocusCompass } from './components/FocusCompass';
 import { GapDetails } from './components/GapDetails';
 import MagicAssistant from './components/MagicAssistant';
 import RecurringManager from './components/RecurringManager';
@@ -1695,30 +1694,6 @@ const App: React.FC = () => {
                                   language={language}
                                   balanceHidden={isBalanceHiddenForLens}
                             />
-                            
-                            <div className={isPremium ? "" : "relative overflow-hidden rounded-[2.5rem]"}>
-                                <div className={isPremium ? "" : "blur-md opacity-40 pointer-events-none transition-all duration-500 scale-[0.99]"}>
-                                    <FocusCompass state={state} onAddTransaction={handleAddTransaction} onNavigateTab={setActiveTab} language={language} />
-                                </div>
-                                {!isPremium && (
-                                    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-6 text-center bg-white/30 backdrop-blur-[2px]">
-                                        <div className="bg-white p-6 rounded-3xl shadow-xl border border-sand-200/60 max-w-sm flex flex-col items-center">
-                                            <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mb-4 border border-amber-200/50">
-                                                <Gem size={24} strokeWidth={2} />
-                                            </div>
-                                            <h4 className="font-serif font-black text-xl text-sand-950 mb-2">
-                                                {language === 'ID' ? 'AI Financial Core' : 'AI Financial Core'}
-                                            </h4>
-                                            <p className="text-sand-500 text-xs leading-relaxed mb-6">
-                                                {language === 'ID' ? 'Temukan anomali finansial secara eksklusif dengan audit cerdas berbasis AI.' : 'Unlock real-time financial sentiment analysis and smart flow adjustments.'}
-                                            </p>
-                                            <button onClick={() => setShowPremiumModal(true)} className="w-full bg-sand-950 text-amber-200 text-xs font-mono font-bold tracking-widest uppercase py-3 rounded-xl transition-all hover:bg-black active:scale-95">
-                                                {language === 'ID' ? 'Tingkatkan ke Plus' : 'Upgrade to Plus'}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
                             
                             <GapDetails 
                                 monthlyBurn={monthlyBurn} 
