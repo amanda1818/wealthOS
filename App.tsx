@@ -10,6 +10,7 @@ import BottomSheet from './components/BottomSheet';
 import Assistant from './components/Assistant';
 import PocketDetail from './components/PocketDetail';
 import ControlTower from './components/ControlTower';
+import WeeklyReport from './components/WeeklyReport';
 import Today from './routes/Today';
 import Flow from './routes/Flow';
 import FreedomRoute from './routes/Freedom';
@@ -28,6 +29,8 @@ const App: React.FC = () => {
   const toast = useStore(s => s.toast);
   const showControlTower = useStore(s => s.showControlTower);
   const setShowControlTower = useStore(s => s.setShowControlTower);
+  const showWeeklyReport = useStore(s => s.showWeeklyReport);
+  const setShowWeeklyReport = useStore(s => s.setShowWeeklyReport);
 
   const showRevenueModal = useStore(s => s.showRevenueModal);
   const setShowRevenueModal = useStore(s => s.setShowRevenueModal);
@@ -87,7 +90,7 @@ const App: React.FC = () => {
       }
 
       return () => clearTimeout(timeout);
-  }, [householdCtx, state.pockets, state.transactions, state.fortressGoals, state.user, state.partner, state.liabilities, state.recurringObligations, state.lifeCards, state.advisorChatHistory, state.history, state.settings, state.settlementBalance, state.privateReserves, state.postponedTaskIds, state.lastCheckFreedomYear, state.lastCheckNetWorth, state.lastCheckDate]);
+  }, [householdCtx, state.pockets, state.transactions, state.fortressGoals, state.user, state.partner, state.liabilities, state.recurringObligations, state.lifeCards, state.advisorChatHistory, state.history, state.settings, state.settlementBalance, state.privateReserves, state.postponedTaskIds, state.lastCheckFreedomYear, state.lastCheckNetWorth, state.lastCheckDate, state.lastReportFreedomYear, state.lastReportNetWorth, state.lastReportDate]);
 
   // AuthGate only listens for session changes while it's mounted (i.e. before
   // householdCtx resolves); this catches sign-out once the main app is showing.
@@ -141,9 +144,10 @@ const App: React.FC = () => {
           </div>
       )}
       {/* Route: the main dashboard chrome is swapped out entirely while
-          Settings is open, rather than layered underneath it -- ControlTower
-          is a screen you navigate to, not an overlay stacked on top. */}
-      {!showControlTower && (
+          Settings or the Weekly Report is open, rather than layered
+          underneath it -- both are screens you navigate to, not overlays
+          stacked on top. */}
+      {!showControlTower && !showWeeklyReport && (
         <>
           <AppHeader />
 
@@ -297,6 +301,10 @@ const App: React.FC = () => {
              language={language}
              onLanguageChange={handleLanguageChange}
           />
+      )}
+
+      {showWeeklyReport && (
+          <WeeklyReport onClose={() => setShowWeeklyReport(false)} />
       )}
 
     </div>

@@ -4,7 +4,7 @@ import {
   FortressGoal, User as UserType, Asset, Liability, AgentPayload, LifeCard,
 } from '../types';
 import { INITIAL_STATE } from './initialState';
-import { formatIDR } from './selectors';
+import { formatIDR, daysSince } from './selectors';
 import {
   pullHouseholdState, pushHouseholdState, saveLocalCache, loadLocalCache,
   migrateLegacyLocalStateIfNeeded, HouseholdContext,
@@ -47,6 +47,7 @@ interface Store {
   toast: Toast | null;
   selectedPocket: Pocket | null;
   showControlTower: boolean;
+  showWeeklyReport: boolean;
   showHeritageGuide: boolean;
   showMobileConsole: boolean;
   isListening: boolean;
@@ -60,6 +61,7 @@ interface Store {
   setIsPremium: (v: boolean) => void;
   setSelectedPocket: (p: Pocket | null) => void;
   setShowControlTower: (v: boolean) => void;
+  setShowWeeklyReport: (v: boolean) => void;
   setShowHeritageGuide: (v: boolean) => void;
   setShowRevenueModal: (v: boolean) => void;
   setRevenueForm: (f: Partial<Store['revenueForm']>) => void;
@@ -99,6 +101,7 @@ interface Store {
   handleUpdatePostponedTaskIds: (ids: string[]) => void;
   handleToggleLifeCard: (card: LifeCard) => void;
   handleRecordCheckIn: (freedomYear: number, netWorth: number) => void;
+  handleRecordWeeklyReport: (freedomYear: number, netWorth: number) => void;
 }
 
 const recalculateState = (transactions: Transaction[], currentPockets: Record<string, Pocket>) => {
@@ -147,6 +150,7 @@ export const useStore = create<Store>((set, get) => ({
   toast: null,
   selectedPocket: null,
   showControlTower: false,
+  showWeeklyReport: false,
   showHeritageGuide: false,
   showMobileConsole: false,
   isListening: false,
@@ -159,6 +163,7 @@ export const useStore = create<Store>((set, get) => ({
   setIsPremium: (v) => set({ isPremium: v }),
   setSelectedPocket: (p) => set({ selectedPocket: p }),
   setShowControlTower: (v) => set({ showControlTower: v }),
+  setShowWeeklyReport: (v) => set({ showWeeklyReport: v }),
   setShowHeritageGuide: (v) => set({ showHeritageGuide: v }),
   setShowRevenueModal: (v) => set({ showRevenueModal: v }),
   setRevenueForm: (f) => set(s => ({ revenueForm: { ...s.revenueForm, ...f } })),
@@ -191,6 +196,7 @@ export const useStore = create<Store>((set, get) => ({
       // previous session in this tab was still open.
       activeTab: 'TODAY',
       showControlTower: false,
+      showWeeklyReport: false,
       showRevenueModal: false,
       showDeficitModal: false,
       showHeritageGuide: false,
@@ -226,6 +232,7 @@ export const useStore = create<Store>((set, get) => ({
       activeTab: 'TODAY',
       activeLens: 'JOINT',
       showControlTower: false,
+      showWeeklyReport: false,
       showRevenueModal: false,
       showDeficitModal: false,
       showHeritageGuide: false,
@@ -828,6 +835,25 @@ export const useStore = create<Store>((set, get) => ({
               lastCheckFreedomYear: freedomYear,
               lastCheckNetWorth: netWorth,
               lastCheckDate: today,
+          }
+      }));
+  },
+
+  // Weekly-gated, not daily-gated: a real 7 days must have elapsed since the
+  // last recorded report baseline, so revisiting the report mid-week keeps
+  // showing the SAME comparison instead of resetting it. Separate
+  // last_report_* namespace from last_check_* (Together Layer 1) -- the two
+  // features must never overwrite each other's baseline.
+  handleRecordWeeklyReport: (freedomYear, netWorth) => {
+      const { state } = get();
+      if (state.lastReportDate && daysSince(state.lastReportDate, Date.now()) < 7) return;
+      const today = new Date().toISOString().slice(0, 10);
+      set(s => ({
+          state: {
+              ...s.state,
+              lastReportFreedomYear: freedomYear,
+              lastReportNetWorth: netWorth,
+              lastReportDate: today,
           }
       }));
   },

@@ -269,6 +269,9 @@ export const pushHouseholdState = async (ctx: HouseholdContext, state: AppState)
     last_check_freedom_year: state.lastCheckFreedomYear ?? null,
     last_check_net_worth: state.lastCheckNetWorth ?? null,
     last_check_date: state.lastCheckDate ?? null,
+    last_report_freedom_year: state.lastReportFreedomYear ?? null,
+    last_report_net_worth: state.lastReportNetWorth ?? null,
+    last_report_date: state.lastReportDate ?? null,
     updated_at: now,
   }, { onConflict: 'household_id' });
   if (settingsError) throw settingsError;
@@ -477,6 +480,11 @@ export const pullHouseholdState = async (ctx: HouseholdContext): Promise<Partial
       lastCheckFreedomYear: settingsRow.last_check_freedom_year,
       lastCheckNetWorth: Number(settingsRow.last_check_net_worth),
       lastCheckDate: settingsRow.last_check_date,
+    } : {}),
+    ...(settingsRow?.last_report_date ? {
+      lastReportFreedomYear: settingsRow.last_report_freedom_year,
+      lastReportNetWorth: Number(settingsRow.last_report_net_worth),
+      lastReportDate: settingsRow.last_report_date,
     } : {}),
     privateReserves,
   };

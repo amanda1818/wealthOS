@@ -154,6 +154,50 @@ export const computePartnershipScore = (state: AppState, currentFreedomYear: num
   return { score, components };
 };
 
+// --- Weekly Report helpers (components/WeeklyReport.tsx) ---
+// "This week" is a rolling trailing 7 days from `now`, not a calendar week --
+// well-defined regardless of which day the report is opened, and needs no
+// stored baseline since transactions already carry real dates.
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const isWithinLastWeek = (isoDate: string, now: number): boolean => {
+  const t = new Date(isoDate).getTime();
+  return !isNaN(t) && t <= now && (now - t) <= WEEK_MS;
+};
+
+export const daysSince = (isoDate: string, now: number): number => {
+  const t = new Date(isoDate).getTime();
+  if (isNaN(t)) return Infinity;
+  return (now - t) / (24 * 60 * 60 * 1000);
+};
+
+// Real Pact contribution (TRANSFER into joint pockets) by one partner, last
+// 7 days -- same underlying signal as the Partnership Score's contribution
+// component, just windowed to a week instead of the current month.
+export const computeWeeklyPactContribution = (state: AppState, user: AppState['user'], now: number): number => {
+  if (!user) return 0;
+  return state.transactions
+    .filter(t => t.ownerId === user.id && t.type === 'TRANSFER' && !t.isPrivate && isWithinLastWeek(t.date, now))
+    .reduce((acc, t) => acc + t.amount, 0);
+};
+
+export interface WeeklyClaimsSettled { count: number; amount: number; }
+
+// Claims actually resolved this week -- handleSettleClaim/
+// handleSettleClientReimbursement create a NEW transaction (category
+// 'Receivable Settlement' / 'Client Refund') dated at the moment of
+// settling, not the original claim date, so filtering by date here reflects
+// real settlement activity, not old claims that happen to still be open.
+// ownerId omitted (undefined) counts both partners combined, for "For Us".
+export const computeWeeklyClaimsSettled = (state: AppState, ownerId: string | undefined, now: number): WeeklyClaimsSettled => {
+  const settledTx = state.transactions.filter(t =>
+    (t.category === 'Receivable Settlement' || t.category === 'Client Refund') &&
+    (ownerId == null || t.ownerId === ownerId) &&
+    isWithinLastWeek(t.date, now)
+  );
+  return { count: settledTx.length, amount: settledTx.reduce((acc, t) => acc + t.netAmount, 0) };
+};
+
 export const formatIDR = (privacyMode: boolean, language: 'EN' | 'ID', num: number) => {
     if (privacyMode) return "••••••";
     return new Intl.NumberFormat(language === 'ID' ? 'id-ID' : 'en-US', { maximumFractionDigits: 0 }).format(num);

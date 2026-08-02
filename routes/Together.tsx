@@ -1,10 +1,39 @@
 import React, { useEffect, useState } from 'react';
-import { HeartHandshake, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { HeartHandshake, TrendingUp, TrendingDown, Minus, Sparkles, ArrowRight } from 'lucide-react';
 import { useStore } from '../state/store';
 import { computeDerived, computeFreedomYear, formatIDR, computePartnershipScore, PartnershipScoreResult } from '../state/selectors';
 import EmptyState from '../ui/EmptyState';
 import Card from '../ui/Card';
 import PartnershipScore from '../components/PartnershipScore';
+
+// Entry point to the signature "can't wait to open it" ritual
+// (PRODUCT-BRIEF.md §6) -- shown at the top of Together regardless of
+// Layer 1/2's own data-sufficiency state, since the report has its own
+// independent baseline and can be meaningful even on a first Together visit.
+const WeeklyReportBanner: React.FC<{ language: 'EN' | 'ID' }> = ({ language }) => {
+  const setShowWeeklyReport = useStore(s => s.setShowWeeklyReport);
+  return (
+    <button
+      onClick={() => setShowWeeklyReport(true)}
+      className="w-full bg-[#06402B] hover:bg-[#0d543b] text-white rounded-3xl p-6 flex items-center justify-between gap-4 shadow-sm transition-all active:scale-[0.99] text-left"
+    >
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 bg-white/10 rounded-xl shrink-0">
+          <Sparkles size={20} />
+        </div>
+        <div>
+          <div className="font-serif font-bold text-lg leading-none">
+            {language === 'ID' ? 'Laporan Minggu Ini' : "This Week's Report"}
+          </div>
+          <div className="text-[11px] text-white/70 mt-1">
+            {language === 'ID' ? 'Kemenangan nyata untuk Anda, pasangan, dan berdua' : 'Real wins for you, your partner, and together'}
+          </div>
+        </div>
+      </div>
+      <ArrowRight size={18} className="shrink-0 text-white/70" />
+    </button>
+  );
+};
 
 // Shown after the Freedom Date / net worth cards in both the empty-state and
 // delta-view branches below -- its own data-sufficiency gate (score === null)
@@ -87,6 +116,7 @@ const Together: React.FC = () => {
   if (!hasPriorCheck) {
     return (
       <div className="space-y-6">
+        <WeeklyReportBanner language={language} />
         <EmptyState
           icon={HeartHandshake}
           title={language === 'ID' ? 'Membangun Riwayat Anda' : 'Building Your History'}
@@ -152,6 +182,8 @@ const Together: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <WeeklyReportBanner language={language} />
+
       <div className="text-[10px] font-mono font-bold uppercase tracking-widest text-sand-500 px-1">
         {language === 'ID' ? `Sejak pemeriksaan terakhir · ${baseline.date}` : `Since your last check-in · ${baseline.date}`}
       </div>

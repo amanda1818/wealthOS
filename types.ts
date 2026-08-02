@@ -242,6 +242,12 @@ export interface AppState {
   lastCheckFreedomYear?: number;
   lastCheckNetWorth?: number;
   lastCheckDate?: string;
+  // The household's last real Weekly Report baseline (see
+  // components/WeeklyReport.tsx) -- a separate namespace from lastCheck*
+  // above so the two features never clobber each other's comparison point.
+  lastReportFreedomYear?: number;
+  lastReportNetWorth?: number;
+  lastReportDate?: string;
 }
 
 // --- UNIVERSAL AGENT KERNEL TYPES ---
