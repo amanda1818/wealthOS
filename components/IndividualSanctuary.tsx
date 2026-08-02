@@ -38,7 +38,7 @@ const IndividualSanctuary: React.FC<IndividualSanctuaryProps> = ({ state, onPriv
         )
         .reduce((acc, t) => acc + t.amount, 0);
 
-    const pactProgress = Math.min((pactContributed / pactTarget) * 100, 100);
+    const pactProgress = pactTarget > 0 ? Math.min((pactContributed / pactTarget) * 100, 100) : 0;
 
     // 3. Private Assets (Mock filter for now)
     const privateAssets = state.fortressGoals.filter(g => g.ownerId === user.id);
