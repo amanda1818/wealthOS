@@ -130,6 +130,7 @@ const Today: React.FC = () => {
         onSettleClaim={handleSettleClaim}
         onUpdateTransactionNotes={handleUpdateTransactionNotes}
         onSettleClientReimbursement={handleSettleClientReimbursement}
+        cfoName={(state.user?.role === 'CFO' ? state.user.name : state.partner?.role === 'CFO' ? state.partner.name : undefined) || 'Partner A'}
       />
 
       {/* Compact Executive Quick Actions - high density and instantly visible at the bottom of the dashboard pane */}

@@ -133,6 +133,11 @@ interface ActiveTasksProps {
   onUpdateTransactionNotes?: (txId: string, notes: string) => void;
   onSettleClientReimbursement?: (tx: Transaction) => void;
   language?: 'EN' | 'ID';
+  // Real name of whoever holds the household's CFO role -- client
+  // reimbursements are that role's workspace, not a specific fictional
+  // person's. Falls back to the existing 'Partner A'/'Partner B' convention
+  // (state/selectors.ts's getLensLabel) when unavailable.
+  cfoName?: string;
 }
 
 const ActiveTasks: React.FC<ActiveTasksProps> = ({
@@ -142,6 +147,7 @@ const ActiveTasks: React.FC<ActiveTasksProps> = ({
   onUpdateTransactionNotes,
   onSettleClientReimbursement,
   language = 'EN',
+  cfoName = 'Partner A',
 }) => {
   const formatIDR = (num: number) =>
     new Intl.NumberFormat(language === 'ID' ? 'id-ID' : 'en-US', { maximumFractionDigits: 0 }).format(num);
@@ -431,7 +437,7 @@ const ActiveTasks: React.FC<ActiveTasksProps> = ({
         </div>
       )}
 
-      {/* SECTION 3: VICTORIA'S CLIENT REIMBURSEMENTS (CFO WORKSPACE) */}
+      {/* SECTION 3: CLIENT REIMBURSEMENTS (CFO WORKSPACE) */}
       {pendingReimbursements.length > 0 && showReimbursements && (
         <div className="animate-in slide-in-from-left-4 duration-500">
           <div className="flex items-center gap-2 mb-3 px-1 mt-6">
@@ -440,7 +446,7 @@ const ActiveTasks: React.FC<ActiveTasksProps> = ({
             </div>
             <div>
               <h3 className="text-xs font-mono font-bold text-sand-800 uppercase tracking-widest">
-                {language === 'ID' ? 'Reimbursement Klien Victoria' : "Victoria's Client Reimbursements"}
+                {language === 'ID' ? `Reimbursement Klien ${cfoName}` : `${cfoName}'s Client Reimbursements`}
               </h3>
               <p className="text-[10px] text-sand-500 font-semibold">
                 {language === 'ID' ? 'Biaya operasional konsultasi/perjalanan yang ditagihkan ke klien.' : 'Fragmented business expenses waiting for corporate client clearance.'}

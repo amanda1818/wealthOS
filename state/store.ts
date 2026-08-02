@@ -748,9 +748,12 @@ export const useStore = create<Store>((set, get) => ({
       };
 
       handleStateUpdate([reimbursementTx, ...newTransactions]);
+      // ownerId above is always the CFO role slot ('user_her') -- name the
+      // real person who holds that role, never a fictional persona.
+      const cfoName = (state.user?.role === 'CFO' ? state.user.name : state.partner?.role === 'CFO' ? state.partner.name : undefined) || 'Partner A';
       showToast(
           "Reimbursement Received",
-          `Client refund of Rp ${formatIDR(get().privacyMode, get().language, outstandingAmt)} credited back to Victoria's balance.`,
+          `Client refund of Rp ${formatIDR(get().privacyMode, get().language, outstandingAmt)} credited back to ${cfoName}'s balance.`,
           "success"
       );
   },
