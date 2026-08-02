@@ -1,11 +1,17 @@
 import { AppState, PocketType, PocketSettings, User as UserType } from '../types';
 
+// Transient pre-pull defaults only -- handleAuthReady's pull immediately
+// overwrites these with the real household_members row for both slots, so a
+// real user practically never sees these. Named generically (matching the
+// 'Partner A'/'Partner B' fallback convention in state/selectors.ts) rather
+// than with a fictional persona, since these are still technically part of
+// the state a fresh/signed-out session starts from.
 export const himUser: UserType = {
-    id: 'user_his', name: 'David', email: 'david@heritage.com', isAuthenticated: true, avatar: 'D', monthlyIncome: 40000000, role: 'MEMBER',
+    id: 'user_his', name: 'Partner B', email: 'partner-b@example.com', isAuthenticated: true, avatar: 'B', monthlyIncome: 40000000, role: 'MEMBER',
     allocationStrategy: { contribution: 60, wealthRatio: 80 }
 };
 export const herUser: UserType = {
-    id: 'user_her', name: 'Victoria', email: 'victoria@heritage.com', isAuthenticated: true, avatar: 'V', monthlyIncome: 30000000, role: 'CFO',
+    id: 'user_her', name: 'Partner A', email: 'partner-a@example.com', isAuthenticated: true, avatar: 'A', monthlyIncome: 30000000, role: 'CFO',
     allocationStrategy: { contribution: 40, wealthRatio: 70 }
 };
 
@@ -83,7 +89,7 @@ export const INITIAL_STATE: AppState = {
       merchant: 'Netflix',
       tags: ['duplicate', 'placeholder']
     },
-    // DAVID'S MULTI-BUSINESS REVENUES
+    // PARTNER B'S MULTI-BUSINESS REVENUES
     {
       id: 'rev-1',
       date: '2026-06-01T10:00:00Z',
@@ -149,11 +155,11 @@ export const INITIAL_STATE: AppState = {
       ownerId: 'user_his',
       status: 'SETTLED'
     },
-    // VICTORIA'S RETRAINER SALARY
+    // PARTNER A'S RETAINER SALARY
     {
       id: 'inc-victoria',
       date: '2026-06-01T08:00:00Z',
-      description: 'Victoria Partner McKinsey/BCG Consulting Salary',
+      description: "Partner A's McKinsey/BCG Consulting Salary",
       amount: 30000000,
       netAmount: 30000000,
       repaidAmount: 0,
@@ -163,7 +169,7 @@ export const INITIAL_STATE: AppState = {
       ownerId: 'user_her',
       status: 'SETTLED'
     },
-    // VICTORIA'S FRAGMENTED EXPENSES (Coffee, Cat stuff, Client out-of-pockets)
+    // PARTNER A'S FRAGMENTED EXPENSES (Coffee, Cat stuff, Client out-of-pockets)
     {
       id: 'vic-exp-1',
       date: '2026-06-02T08:30:00Z',
@@ -246,7 +252,7 @@ export const INITIAL_STATE: AppState = {
       ownerId: 'user_her',
       status: 'PENDING_REIMBURSEMENT'
     },
-    // DAVID'S CO-SPEND CLAIMS (Paid first by him using personal liquid cash - needs reimbursement from joint/partner)
+    // PARTNER B'S CO-SPEND CLAIMS (Paid first by him using personal liquid cash - needs reimbursement from joint/partner)
     {
       id: 'his-claim-1',
       date: '2026-06-03T18:00:00Z',
@@ -267,7 +273,7 @@ export const INITIAL_STATE: AppState = {
     {
       id: 'his-claim-2',
       date: '2026-06-05T19:30:00Z',
-      description: 'Plataran Menteng Dinner (David paid for Joint)',
+      description: 'Plataran Menteng Dinner (Partner B paid for Joint)',
       amount: 3000000,
       netAmount: 3000000,
       repaidAmount: 1500000,
@@ -421,7 +427,7 @@ export const INITIAL_STATE: AppState = {
   ],
   efficiencyScore: 94,
   settings: INITIAL_SETTINGS,
-  settlementBalance: 1900000, // David's outstanding receivables (400k + 1.5M)
+  settlementBalance: 1900000, // Partner B's outstanding receivables (400k + 1.5M)
   pockets: {
     // WEALTH & LEGACY
     [PocketType.ZAKAT]: { id: PocketType.ZAKAT, name: 'Zakat & Charitable Giving', balance: 12500000, group: 'WEALTH', behavior: 'COMMITMENT', description: 'Charitable allocation of 2.5%', isShared: true },
@@ -449,14 +455,12 @@ export const INITIAL_STATE: AppState = {
     [PocketType.UNALLOCATED]: { id: PocketType.UNALLOCATED, name: 'Unallocated Capital', balance: 18900000, group: 'WEALTH', behavior: 'BUDGET', description: 'Fresh capital outstanding requiring allocation.', isShared: true },
   },
   postponedTaskIds: [],
-  advisorChatHistory: [
-    {
-      id: 'msg-seed-1',
-      sender: 'ALPHA',
-      text: 'Greetings David & Victoria. Your Wealth Agent is fully bootloaded. We have merged your incoming and outgoings into a unified Family Office System.',
-      timestamp: Date.now() - 3600000
-    }
-  ],
+  // No seeded greeting -- a hardcoded message here would get pushed to
+  // every new household's real advisor_messages table permanently (it did,
+  // with fictional persona names baked in). The Chat panel renders its own
+  // greeting live from real state.user/state.partner names instead -- see
+  // components/AssistantChat.tsx.
+  advisorChatHistory: [],
   history: [
     {
       id: 'snap-1',
@@ -470,7 +474,7 @@ export const INITIAL_STATE: AppState = {
     }
   ],
   privateReserves: {
-    'user_his': 35000000, // David's private pool
-    'user_her': 20000000  // Victoria's private pool
+    'user_his': 35000000, // Partner B's private pool
+    'user_her': 20000000  // Partner A's private pool
   }
 };

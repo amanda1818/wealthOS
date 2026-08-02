@@ -24,6 +24,15 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ appState, onUpdateHistory
         scrollToBottom();
     }, [appState.advisorChatHistory]);
 
+    // Real names when known, a neutral greeting otherwise -- never a
+    // hardcoded persona. This renders live rather than being stored as a
+    // seeded message, so it can't get pushed to Supabase and linger with
+    // stale or fictional names.
+    const names = [appState.user?.name, appState.partner?.name].filter(Boolean);
+    const greeting = names.length > 0
+        ? `Greetings ${names.join(' & ')}. I have analyzed your Fortress. Ask me about your liquidity gaps, asset allocation, or where to deploy capital.`
+        : 'Welcome. I have analyzed your Fortress. Ask me about your liquidity gaps, asset allocation, or where to deploy capital.';
+
     const handleSend = async () => {
         if (!input.trim()) return;
 
@@ -59,7 +68,7 @@ const AssistantChat: React.FC<AssistantChatProps> = ({ appState, onUpdateHistory
                 {appState.advisorChatHistory.length === 0 && (
                     <div className="text-center text-wealth-muted text-sm mt-10 px-4">
                         <Bot className="w-12 h-12 mx-auto mb-3 opacity-20" />
-                        <p className="font-serif italic">"I have analyzed your Fortress. Ask me about your liquidity gaps, asset allocation, or where to deploy capital."</p>
+                        <p className="font-serif italic">"{greeting}"</p>
                     </div>
                 )}
 
