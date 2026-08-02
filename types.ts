@@ -236,6 +236,12 @@ export interface AppState {
   // (see components/Assistant.tsx) -- persisted so a dismissal sticks across
   // sessions instead of resetting on refresh.
   postponedTaskIds: string[];
+  // The household's last real "Together" check-in observation (see
+  // routes/Together.tsx) -- undefined until the first visit, which is the
+  // honest empty-state signal rather than a fabricated trend.
+  lastCheckFreedomYear?: number;
+  lastCheckNetWorth?: number;
+  lastCheckDate?: string;
 }
 
 // --- UNIVERSAL AGENT KERNEL TYPES ---

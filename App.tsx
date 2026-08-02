@@ -87,7 +87,7 @@ const App: React.FC = () => {
       }
 
       return () => clearTimeout(timeout);
-  }, [householdCtx, state.pockets, state.transactions, state.fortressGoals, state.user, state.partner, state.liabilities, state.recurringObligations, state.lifeCards, state.advisorChatHistory, state.history, state.settings, state.settlementBalance, state.privateReserves, state.postponedTaskIds]);
+  }, [householdCtx, state.pockets, state.transactions, state.fortressGoals, state.user, state.partner, state.liabilities, state.recurringObligations, state.lifeCards, state.advisorChatHistory, state.history, state.settings, state.settlementBalance, state.privateReserves, state.postponedTaskIds, state.lastCheckFreedomYear, state.lastCheckNetWorth, state.lastCheckDate]);
 
   // AuthGate only listens for session changes while it's mounted (i.e. before
   // householdCtx resolves); this catches sign-out once the main app is showing.
@@ -167,8 +167,12 @@ const App: React.FC = () => {
                         <div className={activeTab === 'MINE' ? 'block animate-in fade-in duration-300' : 'hidden'}>
                             <Mine />
                         </div>
+                        {/* Conditionally mounted, unlike the other four surfaces -- it
+                            records a real check-in observation on mount (see
+                            routes/Together.tsx), which needs to fire on each actual
+                            visit rather than once per page load. */}
                         <div className={activeTab === 'TOGETHER' ? 'block animate-in fade-in duration-300' : 'hidden'}>
-                            <Together />
+                            {activeTab === 'TOGETHER' && <Together />}
                         </div>
                     </div>
                   </div>

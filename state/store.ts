@@ -98,6 +98,7 @@ interface Store {
   handleAddLiability: (liability: Liability) => void;
   handleUpdatePostponedTaskIds: (ids: string[]) => void;
   handleToggleLifeCard: (card: LifeCard) => void;
+  handleRecordCheckIn: (freedomYear: number, netWorth: number) => void;
 }
 
 const recalculateState = (transactions: Transaction[], currentPockets: Record<string, Pocket>) => {
@@ -808,6 +809,25 @@ export const useStore = create<Store>((set, get) => ({
               lifeCards: s.state.lifeCards.some(c => c.id === card.id)
                   ? s.state.lifeCards.map(c => c.id === card.id ? card : c)
                   : [...s.state.lifeCards, card],
+          }
+      }));
+  },
+
+  // Idempotent per calendar day: a visit today after an earlier visit today
+  // is a no-op, so the delta shown on this visit compares against the last
+  // DIFFERENT day's observation, not against itself moments after roll-forward
+  // (which would collapse to a trivial zero, including under React StrictMode's
+  // double-invoked effects in dev).
+  handleRecordCheckIn: (freedomYear, netWorth) => {
+      const { state } = get();
+      const today = new Date().toISOString().slice(0, 10);
+      if (state.lastCheckDate === today) return;
+      set(s => ({
+          state: {
+              ...s.state,
+              lastCheckFreedomYear: freedomYear,
+              lastCheckNetWorth: netWorth,
+              lastCheckDate: today,
           }
       }));
   },

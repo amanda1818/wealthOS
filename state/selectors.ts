@@ -1,6 +1,39 @@
-import { AppState, Pocket } from '../types';
+import { AppState, Pocket, LifeCard } from '../types';
 
 export type LensType = 'HIS' | 'JOINT' | 'HER';
+
+// Independent copy of components/Freedom.tsx's runSimulation year-finding
+// logic, reused by routes/Together.tsx to compute "today's real Freedom
+// Date" without depending on Freedom.tsx's local scenario-toggle UI state.
+// Only counts life cards the household has actually activated (real,
+// persisted commitments) -- never untoggled scenario templates.
+export const computeFreedomYear = (monthlyIncome: number, monthlyBurn: number, currentLiquidAssets: number, activeLifeCards: LifeCard[]): number => {
+  let liquid = currentLiquidAssets;
+  const baseSavings = monthlyIncome - monthlyBurn;
+
+  let monthlyImpact = 0;
+  let upfrontImpact = 0;
+  activeLifeCards.forEach(c => {
+      monthlyImpact += c.costImpact;
+      upfrontImpact += c.upfrontCost;
+  });
+
+  const adjustedMonthlySavings = baseSavings - monthlyImpact;
+  liquid -= upfrontImpact;
+
+  const annualBurn = (monthlyBurn + monthlyImpact) * 12;
+  const freedomNumber = annualBurn * 25; // 4% Rule
+  let freedomYear = -1;
+
+  for (let year = 0; year <= 20; year++) {
+      liquid = (liquid * 1.07) + (adjustedMonthlySavings * 12);
+      if (freedomYear === -1 && liquid >= freedomNumber) {
+          freedomYear = year;
+      }
+  }
+
+  return freedomYear;
+};
 
 export const formatIDR = (privacyMode: boolean, language: 'EN' | 'ID', num: number) => {
     if (privacyMode) return "••••••";

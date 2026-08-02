@@ -266,6 +266,9 @@ export const pushHouseholdState = async (ctx: HouseholdContext, state: AppState)
     balance_visibility: settings.balanceVisibility ?? 'TRANSPARENT',
     settlement_balance: state.settlementBalance,
     postponed_task_ids: state.postponedTaskIds ?? [],
+    last_check_freedom_year: state.lastCheckFreedomYear ?? null,
+    last_check_net_worth: state.lastCheckNetWorth ?? null,
+    last_check_date: state.lastCheckDate ?? null,
     updated_at: now,
   }, { onConflict: 'household_id' });
   if (settingsError) throw settingsError;
@@ -470,6 +473,11 @@ export const pullHouseholdState = async (ctx: HouseholdContext): Promise<Partial
     ...(settings ? { settings } : {}),
     ...(settingsRow ? { settlementBalance: Number(settingsRow.settlement_balance) } : {}),
     ...(settingsRow ? { postponedTaskIds: settingsRow.postponed_task_ids ?? [] } : {}),
+    ...(settingsRow?.last_check_date ? {
+      lastCheckFreedomYear: settingsRow.last_check_freedom_year,
+      lastCheckNetWorth: Number(settingsRow.last_check_net_worth),
+      lastCheckDate: settingsRow.last_check_date,
+    } : {}),
     privateReserves,
   };
 };
