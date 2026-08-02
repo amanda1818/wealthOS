@@ -211,8 +211,12 @@ Deno.serve(async (req: Request) => {
           input: string; imageBase64: string; mimeType: string; context?: string;
         };
         const finalPrompt = context ? `DB CONTEXT: ${context}\nUSER COMMAND (with image): ${input}` : input || 'Analyze image for financial data.';
+        // NOTE: the pro-tier naming pattern is 'gemini-X.Y-pro-preview' (minor
+        // version required), unlike flash's 'gemini-X-flash-preview' (no minor
+        // version) -- 'gemini-3-pro-preview' looks plausible by analogy to the
+        // flash name above but doesn't exist and silently 502'd every call.
         const response = await ai.models.generateContent({
-          model: 'gemini-3-pro-preview',
+          model: 'gemini-3.1-pro-preview',
           contents: { parts: [{ inlineData: { mimeType, data: imageBase64 } }, { text: finalPrompt }] },
           config: { systemInstruction, responseMimeType: 'application/json', responseSchema: RESPONSE_SCHEMA },
         });
@@ -240,7 +244,7 @@ Deno.serve(async (req: Request) => {
           goals: appState?.fortressGoals,
         };
         const response = await ai.models.generateContent({
-          model: 'gemini-3-pro-preview',
+          model: 'gemini-3.1-pro-preview',
           contents: `CONTEXT: ${JSON.stringify(context)}\n\nUSER QUESTION: ${userMessage}`,
           config: { systemInstruction: `You are the household's financial strategist. Household roster:\n${(members ?? []).map((m: HouseholdMember) => `${m.display_name} (${m.role})`).join(', ')}\nBe concise, strategic, and use financial terminology correctly. No fluff.` },
         });
@@ -291,6 +295,16 @@ Deno.serve(async (req: Request) => {
     }
   } catch (error) {
     console.error('ai-gateway error:', error);
-    return jsonResponse({ error: 'AI gateway request failed' }, 502);
+    // The Gemini SDK throws different error shapes depending on the failure
+    // (an ApiError with .status/.message for a rejected request, a plain
+    // Error for something client-side, etc.) -- duck-type across the
+    // plausible shapes rather than assuming one, so a real upstream status
+    // (404 model-not-found, 429 rate-limited, ...) reaches the Network tab
+    // instead of every failure looking like an identical opaque 502.
+    const err = error as { status?: unknown; code?: unknown; message?: unknown; toString?: () => string };
+    const rawStatus = typeof err?.status === 'number' ? err.status : typeof err?.code === 'number' ? err.code : undefined;
+    const status = rawStatus && rawStatus >= 400 && rawStatus <= 599 ? rawStatus : 502;
+    const detail = typeof err?.message === 'string' ? err.message : (error instanceof Error ? error.message : String(error));
+    return jsonResponse({ error: 'AI gateway request failed', detail }, status);
   }
 });
