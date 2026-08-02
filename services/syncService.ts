@@ -265,6 +265,7 @@ export const pushHouseholdState = async (ctx: HouseholdContext, state: AppState)
     show_partner_splits: settings.showPartnerSplits ?? true,
     balance_visibility: settings.balanceVisibility ?? 'TRANSPARENT',
     settlement_balance: state.settlementBalance,
+    postponed_task_ids: state.postponedTaskIds ?? [],
     updated_at: now,
   }, { onConflict: 'household_id' });
   if (settingsError) throw settingsError;
@@ -468,6 +469,7 @@ export const pullHouseholdState = async (ctx: HouseholdContext): Promise<Partial
     // the caller's existing defaults with an explicit `undefined`.
     ...(settings ? { settings } : {}),
     ...(settingsRow ? { settlementBalance: Number(settingsRow.settlement_balance) } : {}),
+    ...(settingsRow ? { postponedTaskIds: settingsRow.postponed_task_ids ?? [] } : {}),
     privateReserves,
   };
 };

@@ -203,16 +203,6 @@ export interface LifeCard {
   inflationAdjusted?: boolean; 
 }
 
-export interface AlphaAlert {
-    id: string;
-    type: 'EXCESS_LIQUIDITY' | 'YIELD_GAP' | 'DEFICIT_RISK';
-    title: string;
-    message: string;
-    actionLabel: string;
-    actionCommand: string; 
-    severity: 'INFO' | 'WARNING' | 'OPPORTUNITY';
-}
-
 export interface AdvisorMessage {
     id: string;
     sender: 'USER' | 'ALPHA';
@@ -238,11 +228,14 @@ export interface AppState {
   exchangeRates: Record<Currency, number>;
   settlementBalance: number; 
   lifeCards: LifeCard[];
-  alphaAlerts: AlphaAlert[]; 
-  advisorChatHistory: AdvisorMessage[]; 
-  history: HistoricalSnapshot[]; 
-  lastSyncTime?: number; 
-  privateReserves: Record<string, number>; 
+  advisorChatHistory: AdvisorMessage[];
+  history: HistoricalSnapshot[];
+  lastSyncTime?: number;
+  privateReserves: Record<string, number>;
+  // Task ids the household has postponed in the Assistant's Priorities mode
+  // (see components/Assistant.tsx) -- persisted so a dismissal sticks across
+  // sessions instead of resetting on refresh.
+  postponedTaskIds: string[];
 }
 
 // --- UNIVERSAL AGENT KERNEL TYPES ---

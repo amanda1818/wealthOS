@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Home, Menu, Mic, Send, Settings as SettingsIcon, Plus, QrCode, CheckCircle2, Activity, Calendar, HeartHandshake, Zap, Compass, Briefcase, Gem, Building2, AlertTriangle, ArrowRight, Lock, Droplets, Play, Pause, RefreshCw, HandCoins, ArrowRightLeft, Scale, Banknote, Globe, Camera, Image as ImageIcon, X, LayoutDashboard, History, ScrollText, Sparkles, MessageSquare, MicOff, Link, AlertOctagon, User, Users, Eye, EyeOff, LogOut } from 'lucide-react';
-import { AppState, PocketType, Transaction, TransactionType, PocketSettings, PocketGroup, Pocket, Currency, FortressGoal, User as UserType, Asset, Liability, AlphaAlert, AdvisorMessage, HistoricalSnapshot, AgentPayload } from './types';
+import { AppState, PocketType, Transaction, TransactionType, PocketSettings, PocketGroup, Pocket, Currency, FortressGoal, User as UserType, Asset, Liability, AdvisorMessage, HistoricalSnapshot, AgentPayload } from './types';
 import PocketCard from './components/PocketCard';
 import TransactionList from './components/TransactionList';
 import FreedomVelocity from './components/FreedomVelocity';
@@ -11,20 +11,19 @@ import Ledger from './components/Ledger';
 import Fortress from './components/Fortress';
 import ControlTower from './components/ControlTower';
 import WaterfallTier from './components/WaterfallTier';
-import IndividualSanctuary from './components/IndividualSanctuary'; 
-import AlphaConcierge from './components/AlphaConcierge'; 
-import AdvisorChat from './components/AdvisorChat'; 
+import IndividualSanctuary from './components/IndividualSanctuary';
+import Assistant from './components/Assistant';
 import ActiveTasks from './components/ActiveTasks';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
 import IntelligenceDesk from './components/IntelligenceDesk';
 import { GapDetails } from './components/GapDetails';
-import MagicAssistant from './components/MagicAssistant';
 import RecurringManager from './components/RecurringManager';
 import { parseTransactionInput, parseMultimodalInput, extractReceiptData } from './services/geminiService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { getExchangeRates, convertToIDR, formatCurrency } from './services/currencyService';
 import { syncInstitutions } from './services/bankSyncService';
 import AuthGate from './components/Auth';
+import BottomSheet from './components/BottomSheet';
 import {
   pullHouseholdState, pushHouseholdState, saveLocalCache, loadLocalCache,
   migrateLegacyLocalStateIfNeeded, HouseholdContext,
@@ -479,26 +478,7 @@ const INITIAL_STATE: AppState = {
     
     [PocketType.UNALLOCATED]: { id: PocketType.UNALLOCATED, name: 'Unallocated Capital', balance: 18900000, group: 'WEALTH', behavior: 'BUDGET', description: 'Fresh capital outstanding requiring allocation.', isShared: true },
   },
-  alphaAlerts: [
-    {
-      id: 'alert-reimbursement',
-      type: 'YIELD_GAP',
-      title: 'Victoria Client Reimbursements Idle',
-      message: 'Victoria has Rp 5,900,000 in client reimbursable fees pending corporate clearance. Liquidate these to return them to Investment Cash.',
-      actionLabel: 'Go to Tasks',
-      actionCommand: 'NAVIGATE COMMAND',
-      severity: 'WARNING'
-    },
-    {
-      id: 'alert-claims-david',
-      type: 'YIELD_GAP',
-      title: 'David Owed Cash Outstanding',
-      message: 'David has Rp 1,900,000 in personal liquidity outstanding from shared dinners & tennis court bookings. Trigger joint restructuration recovery.',
-      actionLabel: 'Settle in Tasks',
-      actionCommand: 'NAVIGATE COMMAND',
-      severity: 'OPPORTUNITY'
-    }
-  ],
+  postponedTaskIds: [],
   advisorChatHistory: [
     {
       id: 'msg-seed-1',
@@ -544,10 +524,8 @@ const App: React.FC = () => {
     setShowControlTower(false);
     setShowRevenueModal(false);
     setShowDeficitModal(false);
-    setShowPremiumModal(false);
     setShowHeritageGuide(false);
     setShowMobileConsole(false);
-    setIsChatOpen(false);
     setSelectedPocket(null);
     try {
       const cached = loadLocalCache(ctx.householdId);
@@ -582,10 +560,8 @@ const App: React.FC = () => {
               setShowControlTower(false);
               setShowRevenueModal(false);
               setShowDeficitModal(false);
-              setShowPremiumModal(false);
               setShowHeritageGuide(false);
               setShowMobileConsole(false);
-              setIsChatOpen(false);
               setSelectedPocket(null);
               setPreviousState(null);
               setToast(null);
@@ -643,12 +619,10 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ViewMode>('DASHBOARD');
   const [showControlTower, setShowControlTower] = useState(false);
   const [activeLens, setActiveLens] = useState<LensType>('JOINT');
-  const [isChatOpen, setIsChatOpen] = useState(false);
   const [showMobileConsole, setShowMobileConsole] = useState(false);
   
   // Freemium States
   const [isPremium, setIsPremium] = useState(false);
-  const [showPremiumModal, setShowPremiumModal] = useState(false);
 
   const [selectedImage, setSelectedImage] = useState<{data: string, mimeType: string} | null>(null);
   const [showHeritageGuide, setShowHeritageGuide] = useState(false);
@@ -711,7 +685,7 @@ const App: React.FC = () => {
       }
 
       return () => clearTimeout(timeout);
-  }, [householdCtx, state.pockets, state.transactions, state.fortressGoals, state.user, state.partner, state.liabilities, state.recurringObligations, state.lifeCards, state.advisorChatHistory, state.history, state.settings, state.settlementBalance, state.privateReserves]);
+  }, [householdCtx, state.pockets, state.transactions, state.fortressGoals, state.user, state.partner, state.liabilities, state.recurringObligations, state.lifeCards, state.advisorChatHistory, state.history, state.settings, state.settlementBalance, state.privateReserves, state.postponedTaskIds]);
 
   // --- HARDWARE BACK BUTTON LOGIC ---
   useEffect(() => {
@@ -1304,21 +1278,8 @@ const App: React.FC = () => {
       setSelectedPocket(null); 
   };
 
-  const handleDismissAlert = (id: string) => {
-      setState(prev => ({
-          ...prev,
-          alphaAlerts: prev.alphaAlerts.filter(a => a.id !== id)
-      }));
-  };
-
-  const handleExecuteAlert = (command: string) => {
-      if (command === 'NAVIGATE COMMAND') {
-          switchTab('COMMAND');
-      } else if (command === 'NAVIGATE FORTRESS') {
-          switchTab('FORTRESS');
-      } else if (command === 'NAVIGATE CHRONICLE') {
-          switchTab('CHRONICLE');
-      }
+  const handleUpdatePostponedTaskIds = (ids: string[]) => {
+      setState(prev => ({ ...prev, postponedTaskIds: ids }));
   };
 
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1514,6 +1475,11 @@ const App: React.FC = () => {
               </div>
           </div>
       )}
+      {/* Route: the main dashboard chrome is swapped out entirely while
+          Settings is open, rather than layered underneath it -- ControlTower
+          is a screen you navigate to, not an overlay stacked on top. */}
+      {!showControlTower && (
+        <>
       {/* UI Refinement: Clean elite compact header with single-line logo & top action bar */}
       <div className="z-[1000] bg-white border-b border-sand-200 px-4 md:px-8 py-3 flex justify-between items-center shrink-0 shadow-sm relative">
           <div onClick={scrollToTop} className="cursor-pointer group flex items-baseline gap-1.5 select-none shrink-0">
@@ -1543,14 +1509,15 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex gap-1.5 md:gap-2.5 items-center shrink-0">
-              {/* Premium / Upgrade Button */}
+              {/* Premium / Upgrade -- inline value prop + price, no modal (REVAMP.md) */}
               {!isPremium && (
-                  <button 
-                      onClick={() => setShowPremiumModal(true)}
+                  <button
+                      onClick={() => setIsPremium(true)}
+                      title={language === 'ID' ? 'Buka semua fitur Plus' : 'Unlock every Plus feature'}
                       className="px-2.5 py-1.5 md:px-3 md:py-1.5 bg-gradient-to-br from-sand-800 to-sand-950 hover:from-sand-900 hover:to-black text-amber-200 border border-sand-700 rounded-xl transition-all duration-300 active:scale-95 flex items-center gap-1.5 shadow-sm font-bold"
                   >
                       <Gem size={13} strokeWidth={2.5} className="text-amber-300" />
-                      <span className="hidden sm:inline text-[9px] font-mono tracking-widest uppercase font-extrabold text-amber-200">Plus</span>
+                      <span className="hidden sm:inline text-[9px] font-mono tracking-widest uppercase font-extrabold text-amber-200">Plus · Rp 79k/mo</span>
                   </button>
               )}
 
@@ -1591,8 +1558,6 @@ const App: React.FC = () => {
               </button>
           </div>
       </div>
-
-      <AlphaConcierge alerts={state.alphaAlerts} onExecute={handleExecuteAlert} onDismiss={handleDismissAlert} language={language} />
 
       {/* Main Content: Responsive Fluid Page Layout */}
       <main ref={mainRef} className="flex-1 overflow-y-auto w-full bg-sand-50 relative pb-36 lg:pb-44 scroll-smooth z-0">
@@ -1722,11 +1687,14 @@ const App: React.FC = () => {
                                             <h4 className="font-serif font-black text-lg text-[#06402B] mb-2 font-serif">
                                                 Intelligence Desk
                                             </h4>
-                                            <p className="text-sand-500 text-[11px] leading-relaxed mb-5 px-4 font-sans">
+                                            <p className="text-sand-500 text-[11px] leading-relaxed mb-1 px-4 font-sans">
                                                 {language === 'ID' ? 'Akses intelijen pasif mendalam dan audit likuiditas.' : 'Access deep-layer passive intelligence & liquidity audits.'}
                                             </p>
-                                            <button onClick={() => setShowPremiumModal(true)} className="bg-sand-100 hover:bg-sand-200 text-sand-900 border border-sand-300 text-xs font-bold px-6 py-2 rounded-xl transition-all font-mono tracking-widest uppercase">
-                                                Unlock
+                                            <p className="text-sand-400 text-[10px] font-mono uppercase tracking-widest mb-5">
+                                                {language === 'ID' ? 'Plus · Rp 79rb/bln' : 'Plus · Rp 79k/mo'}
+                                            </p>
+                                            <button onClick={() => setIsPremium(true)} className="bg-sand-100 hover:bg-sand-200 text-sand-900 border border-sand-300 text-xs font-bold px-6 py-2 rounded-xl transition-all font-mono tracking-widest uppercase">
+                                                {language === 'ID' ? 'Berlangganan' : 'Subscribe'}
                                             </button>
                                         </div>
                                     </div>
@@ -1782,7 +1750,7 @@ const App: React.FC = () => {
                               activeLens={activeLens} 
                               language={language}
                               isPremium={isPremium}
-                              onUpgrade={() => setShowPremiumModal(true)}
+                              onUpgrade={() => setIsPremium(true)}
                             />
                         </div>
                     </div>
@@ -1855,16 +1823,16 @@ const App: React.FC = () => {
               disabled={isProcessing}
             />
             <div className="flex items-center gap-1 shrink-0 pr-0.5">
-              <button 
+              <button
                 onClick={() => {
                     if (isPremium) {
                         fileInputRef.current?.click();
                     } else {
-                        setShowPremiumModal(true);
+                        setIsPremium(true);
                     }
-                }} 
+                }}
                 className={`p-1.5 rounded-full transition-colors border ${isPremium ? 'text-sand-500 hover:text-[#06402B] hover:bg-white border-transparent hover:border-sand-200' : 'text-amber-600 bg-amber-50/80 hover:bg-amber-100 border-amber-200 shadow-sm'}`}
-                title={language === 'ID' ? "Unggah Gambar (Plus)" : "Upload Receipt (Plus)"}
+                title={language === 'ID' ? "Unggah Gambar -- Plus, Rp 79rb/bln" : "Upload Receipt -- Plus, Rp 79k/mo"}
                 disabled={isProcessing}
               >
                 <Camera size={14} />
@@ -1882,54 +1850,35 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* Revenue Modal */}
-      {showRevenueModal && (
-          <div 
-              className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in"
-              onClick={() => setShowRevenueModal(false)}
-          >
-              <div 
-                  className="bg-wealth-panel w-full max-w-sm rounded-xl p-6 shadow-2xl border border-wealth-border animate-in zoom-in-95"
-                  onClick={(e) => e.stopPropagation()}
-              >
-                  <div className="flex justify-between items-center mb-6">
-                      <h3 className="font-serif font-bold text-xl text-wealth-text">Inject Revenue</h3>
-                      <button 
-                          onClick={() => setShowRevenueModal(false)}
-                          className="text-wealth-muted hover:text-wealth-text transition-colors p-1"
-                          title="Close"
-                      >
-                          <X size={20}/>
-                      </button>
-                  </div>
-                  <div className="space-y-4">
-                      <div>
-                          <label className="text-[9px] uppercase font-bold text-wealth-muted block mb-1">Earner</label>
-                          <div className="flex gap-2">
-                              <button onClick={() => setRevenueForm({...revenueForm, owner: 'HER'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HER' ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-white border border-wealth-border'}`}>{state.user?.name || 'You'}</button>
-                              <button onClick={() => setRevenueForm({...revenueForm, owner: 'HIS'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HIS' ? 'bg-slate-50 border border-slate-200 text-slate-700' : 'bg-white border border-wealth-border'}`}>{state.partner?.name || 'Partner'}</button>
-                          </div>
-                      </div>
-                      <div>
-                          <label className="text-[9px] uppercase font-bold text-wealth-muted block mb-1">Amount</label>
-                          <input type="text" value={revenueForm.amount} onChange={e => setRevenueForm({...revenueForm, amount: e.target.value})} className="w-full text-2xl font-serif font-bold border-b border-wealth-gold bg-transparent focus:outline-none" placeholder="0" autoFocus />
-                      </div>
-                      <button onClick={handleInjectRevenue} className="w-full py-3 bg-wealth-emerald text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-emerald-800 mt-4">Execute Waterfall</button>
+      {/* Inject Revenue -- bottom sheet, confirm-style single action */}
+      <BottomSheet isOpen={showRevenueModal} onClose={() => setShowRevenueModal(false)} title="Inject Revenue">
+          <div className="space-y-4">
+              <div>
+                  <label className="text-[9px] uppercase font-bold text-wealth-muted block mb-1">Earner</label>
+                  <div className="flex gap-2">
+                      <button onClick={() => setRevenueForm({...revenueForm, owner: 'HER'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HER' ? 'bg-rose-50 border border-rose-200 text-rose-700' : 'bg-white border border-wealth-border'}`}>{state.user?.name || 'You'}</button>
+                      <button onClick={() => setRevenueForm({...revenueForm, owner: 'HIS'})} className={`flex-1 py-2 rounded-lg text-xs font-bold uppercase ${revenueForm.owner === 'HIS' ? 'bg-slate-50 border border-slate-200 text-slate-700' : 'bg-white border border-wealth-border'}`}>{state.partner?.name || 'Partner'}</button>
                   </div>
               </div>
+              <div>
+                  <label className="text-[9px] uppercase font-bold text-wealth-muted block mb-1">Amount</label>
+                  <input type="text" value={revenueForm.amount} onChange={e => setRevenueForm({...revenueForm, amount: e.target.value})} className="w-full text-2xl font-serif font-bold border-b border-wealth-gold bg-transparent focus:outline-none" placeholder="0" autoFocus />
+              </div>
+              <button onClick={handleInjectRevenue} className="w-full py-3 bg-wealth-emerald text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-emerald-800 mt-4">Execute Waterfall</button>
           </div>
-      )}
+      </BottomSheet>
 
-      {/* DEFICIT WARNING MODAL */}
-      {showDeficitModal && deficitData && (
-          <div className="fixed inset-0 z-[110] bg-rose-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowDeficitModal(false)}>
-              <div className="bg-wealth-panel w-full max-w-sm rounded-xl p-6 shadow-2xl border-2 border-rose-400 animate-in zoom-in-95" onClick={(e) => e.stopPropagation()}>
+      {/* Deficit warning -- bottom sheet, custom rose-tinted header instead of
+          the shared title bar so the warning stays visually distinct */}
+      <BottomSheet isOpen={showDeficitModal && !!deficitData} onClose={() => setShowDeficitModal(false)}>
+          {deficitData && (
+              <>
                   <div className="flex justify-between items-center mb-4 border-b border-rose-100 pb-2">
                       <div className="flex items-center gap-3 text-rose-700">
                           <AlertTriangle size={24} />
                           <h3 className="font-serif font-bold text-xl">Executive Deficit Warning</h3>
                       </div>
-                      <button 
+                      <button
                           onClick={() => setShowDeficitModal(false)}
                           className="text-sand-400 hover:text-sand-950 rounded p-1 transition-colors"
                           title="Close"
@@ -1937,26 +1886,26 @@ const App: React.FC = () => {
                           <X size={18} />
                       </button>
                   </div>
-                  
+
                   <div className="space-y-4 mb-6">
                       <p className="text-sm text-wealth-text leading-relaxed">
                           Your Joint Pact ({formatCompact(deficitData.availableJoint)}) is insufficient to cover Tier 1 & 2 leads ({formatCompact(deficitData.required)}).
                       </p>
                       <div className="bg-rose-50 p-4 rounded-lg border border-rose-100 flex justify-between items-center">
                             <span className="text-xs font-bold uppercase text-rose-800">Deficit</span>
-                            <span className="text-xl font-serif font-bold text-rose-700">Rp {formatCompact(deficitData.deficit)}</span>
+                            <span className="text-xl font-serif font-bold text-rose-700">Rp {formatCompact(deficitData.deficit)}</span>
                       </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                      <button 
+                      <button
                           onClick={() => executeWaterfall(deficitData.finalAmount, deficitData.ownerId, deficitData.currency, false)}
                           className="py-3 bg-slate-200 text-slate-700 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-slate-300"
                       >
                           Accept Deficit
                           <span className="block text-[8px] opacity-70 font-normal normal-case">Leave pockets partially unfunded</span>
                       </button>
-                      <button 
+                      <button
                           onClick={() => executeWaterfall(deficitData.finalAmount, deficitData.ownerId, deficitData.currency, true)}
                           className="py-3 bg-wealth-emerald text-white rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-800 shadow-lg"
                       >
@@ -1964,11 +1913,20 @@ const App: React.FC = () => {
                           <span className="block text-[8px] opacity-80 font-normal normal-case">Pull from Private Reserve</span>
                       </button>
                   </div>
-              </div>
-          </div>
-      )}
+              </>
+          )}
+      </BottomSheet>
       
-      <AdvisorChat appState={state} isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} onUpdateHistory={(h) => setState(prev => ({ ...prev, advisorChatHistory: h }))} />
+      <Assistant
+        state={state}
+        language={language}
+        switchTab={switchTab}
+        onUpdateChatHistory={(h) => setState(prev => ({ ...prev, advisorChatHistory: h }))}
+        postponedTaskIds={state.postponedTaskIds}
+        onUpdatePostponedTaskIds={handleUpdatePostponedTaskIds}
+        isPremium={isPremium}
+        onUpgrade={() => setIsPremium(true)}
+      />
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -1993,6 +1951,9 @@ const App: React.FC = () => {
           />
       )}
       
+        </>
+      )}
+
       {showControlTower && (
           <ControlTower
              state={state}
@@ -2011,87 +1972,6 @@ const App: React.FC = () => {
              language={language}
              onLanguageChange={handleLanguageChange}
           />
-      )}
-
-      {/* FREEMIUM MODAL: Upgrade to Plus */}
-      {showPremiumModal && (
-          <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300" onClick={() => setShowPremiumModal(false)}>
-              <div className="bg-white w-full max-w-lg rounded-[2rem] p-8 md:p-10 shadow-2xl border border-sand-200 animate-in zoom-in-95 duration-500 overflow-hidden relative" onClick={(e) => e.stopPropagation()}>
-                  {/* Glowing background */}
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-amber-100/50 to-amber-200/20 rounded-full blur-3xl -mr-20 -mt-20"></div>
-
-                  <div className="flex justify-between items-start mb-6 border-b border-sand-100 pb-6 relative z-10">
-                      <div className="flex gap-4 items-center">
-                          <div className="w-14 h-14 bg-gradient-to-br from-sand-900 to-black text-amber-300 rounded-2xl flex items-center justify-center shadow-lg border border-sand-700">
-                              <Gem size={28} strokeWidth={2} />
-                          </div>
-                          <div>
-                              <h3 className="font-serif font-black text-2xl text-sand-950 flex items-center gap-2">
-                                  Wealth OS <span className="text-amber-500 font-mono tracking-widest text-sm uppercase translate-y-0.5">Plus</span>
-                              </h3>
-                              <p className="text-sand-500 text-xs font-mono uppercase tracking-widest mt-1">
-                                  {language === 'ID' ? 'Kecerdasan Buatan CFO' : 'Executive AI Core'}
-                              </p>
-                          </div>
-                      </div>
-                      <button 
-                          onClick={() => setShowPremiumModal(false)}
-                          className="bg-sand-50 hover:bg-sand-100 text-sand-400 hover:text-sand-900 rounded-full p-2 transition-all"
-                      >
-                          <X size={18} />
-                      </button>
-                  </div>
-                  
-                  <div className="space-y-6 mb-8 relative z-10">
-                      <div className="flex gap-4">
-                          <div className="w-8 shrink-0 flex justify-center pt-1"><Sparkles className="text-amber-500" size={18} /></div>
-                          <div>
-                              <h4 className="font-bold text-sand-900 text-sm mb-1">{language === 'ID' ? 'AI Financial Core' : 'Focus Compass AI Core'}</h4>
-                              <p className="text-sand-500 text-xs leading-relaxed">{language === 'ID' ? 'Deteksi anomali pengeluaran seketika, temukan sentimen finansial, dan rekomendasikan langkah taktis tanpa Anda harus meminta.' : 'Real-time anomaly detection, financial sentiment analysis, and tactical recommendations without prompting.'}</p>
-                          </div>
-                      </div>
-                      <div className="flex gap-4">
-                          <div className="w-8 shrink-0 flex justify-center pt-1"><Eye className="text-amber-500" size={18} /></div>
-                          <div>
-                              <h4 className="font-bold text-sand-900 text-sm mb-1">{language === 'ID' ? 'Intelligence Desk' : 'Intelligence Desk'}</h4>
-                              <p className="text-sand-500 text-xs leading-relaxed">{language === 'ID' ? 'Akses insight pasif dari pengeluaran gabungan dan audit likuiditas bulan berjalan.' : 'Access passive insights from consolidated burn rates and liquidity audits.'}</p>
-                          </div>
-                      </div>
-                      <div className="flex gap-4">
-                          <div className="w-8 shrink-0 flex justify-center pt-1"><Globe className="text-amber-500" size={18} /></div>
-                          <div>
-                              <h4 className="font-bold text-sand-900 text-sm mb-1">{language === 'ID' ? 'Akses Eksekutif Eksklusif' : 'Exclusive Executive Access'}</h4>
-                              <p className="text-sand-500 text-xs leading-relaxed">{language === 'ID' ? 'Prioritas antrian server untuk pemrosesan nota dan kwitansi gambar instan.' : 'Priority server queuing for instant multimodal receipt and document scanning.'}</p>
-                          </div>
-                      </div>
-                  </div>
-
-                  <div className="space-y-4 relative z-10 pt-4 border-t border-sand-100">
-                      <div className="flex items-center justify-between mb-4">
-                          <div className="text-2xl font-serif font-black text-sand-950">
-                              Rp 79.000 <span className="text-xs font-mono font-bold tracking-widest text-sand-400 uppercase">/ {language === 'ID' ? 'bulan' : 'month'}</span>
-                          </div>
-                          <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                              ~ $5.00
-                          </div>
-                      </div>
-                      
-                      <button 
-                          onClick={() => {
-                              setIsPremium(true);
-                              setShowPremiumModal(false);
-                          }} 
-                          className="w-full py-4 rounded-2xl bg-gradient-to-b from-sand-900 to-black hover:from-black hover:to-black text-amber-300 font-bold font-mono tracking-widest uppercase text-sm shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                      >
-                          {language === 'ID' ? 'Berlangganan Sekarang' : 'Subscribe Now'}
-                      </button>
-                      
-                      <p className="text-center text-[9px] text-sand-400 font-mono tracking-widest uppercase mt-4">
-                          {language === 'ID' ? 'Batalkan kapan saja. Bebas resiko.' : 'Cancel anytime. Risk-free.'}
-                      </p>
-                  </div>
-              </div>
-          </div>
       )}
 
     </div>

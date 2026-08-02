@@ -172,7 +172,7 @@ const Fortress: React.FC<FortressProps> = ({ state, onAddGoal, onUpdateGoal, onD
                           ? (language === 'ID' ? 'Nilai Masa Depan (FV)' : 'Future Val (FV)') 
                           : (language === 'ID' ? 'Nilai Sekarang (PV)' : 'Present Val (PV)')}
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                         if (!isPremium && state.fortressGoals.length >= 1) {
                             if (onUpgrade) onUpgrade();
@@ -180,9 +180,13 @@ const Fortress: React.FC<FortressProps> = ({ state, onAddGoal, onUpdateGoal, onD
                             setIsCreatingGoal(true);
                         }
                     }}
+                    title={(!isPremium && state.fortressGoals.length >= 1) ? (language === 'ID' ? 'Buka Pilar Tanpa Batas -- Plus, Rp 79rb/bln' : 'Unlock unlimited pillars -- Plus, Rp 79k/mo') : undefined}
                     className={`flex items-center gap-1.5 text-[9px] uppercase font-bold tracking-widest ${!isPremium && state.fortressGoals.length >= 1 ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-200' : 'text-[#06402B] hover:text-[#06402B]/80 bg-white border border-[#E2D9C8]/80'} px-2.5 py-1 rounded-xl shadow-sm transition-colors font-mono font-bold`}
                   >
-                      {(!isPremium && state.fortressGoals.length >= 1) ? <Lock size={12} className="text-amber-500" /> : <Plus size={12} />} {language === 'ID' ? 'Bangun' : 'Construct'}
+                      {(!isPremium && state.fortressGoals.length >= 1)
+                          ? <><Lock size={12} className="text-amber-500" /> {language === 'ID' ? 'Plus · Rp 79rb/bln' : 'Plus · Rp 79k/mo'}</>
+                          : <><Plus size={12} /> {language === 'ID' ? 'Bangun' : 'Construct'}</>
+                      }
                   </button>
               </div>
           </div>
