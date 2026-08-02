@@ -35,6 +35,125 @@ export const computeFreedomYear = (monthlyIncome: number, monthlyBurn: number, c
   return freedomYear;
 };
 
+export interface PartnershipScoreComponent {
+  label: string;
+  value: number; // 0-100
+  description: string;
+}
+
+export interface PartnershipScoreResult {
+  score: number | null; // null = not enough real data yet, never a fabricated default
+  components: PartnershipScoreComponent[];
+}
+
+// PRODUCT-BRIEF.md §4 Layer 2: a real, behavior-derived score, not a quiz and
+// not a hardcoded number. Each of the three inputs below is independently
+// gated on having real data -- an unavailable input is dropped from the
+// blend entirely rather than counted as 0 or defaulted to 100. If none of
+// the three have data yet, `score` is null (an honest "not enough data"
+// state), never a fabricated placeholder.
+export const computePartnershipScore = (state: AppState, currentFreedomYear: number, language: 'EN' | 'ID'): PartnershipScoreResult => {
+  const components: PartnershipScoreComponent[] = [];
+
+  // 1. Joint contribution -- there's no data link between a transaction and
+  // which goal it funded, so "both partners contributing to joint goals" is
+  // measured via the same Pact Obligation formula already live on the Mine
+  // tab (IndividualSanctuary.tsx): this month's TRANSFER transactions from a
+  // partner into joint pockets, over an income-based target. Computed for
+  // BOTH partners and reduced with Math.min -- one partner over-contributing
+  // must never mask the other under-contributing. A partner with no income
+  // set has no target and is excluded, not penalized; if neither partner has
+  // income set, this component has no data at all.
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const computePactProgress = (user: AppState['user']): number | null => {
+    if (!user || !user.monthlyIncome) return null;
+    const pactTarget = user.monthlyIncome * ((user.allocationStrategy?.contribution || 50) / 100);
+    if (pactTarget <= 0) return null;
+    const pactContributed = state.transactions
+      .filter(t => t.ownerId === user.id && t.type === 'TRANSFER' && t.date.startsWith(currentMonth) && !t.isPrivate)
+      .reduce((acc, t) => acc + t.amount, 0);
+    return Math.min((pactContributed / pactTarget) * 100, 100);
+  };
+  const contributionProgresses = [computePactProgress(state.user), computePactProgress(state.partner)]
+    .filter((v): v is number => v != null);
+  if (contributionProgresses.length > 0) {
+    components.push({
+      label: language === 'ID' ? 'Kontribusi Bersama' : 'Joint Contribution',
+      value: Math.round(Math.min(...contributionProgresses)),
+      description: language === 'ID'
+        ? 'Kontribusi terendah dari kedua pasangan ke kantong bersama bulan ini, relatif terhadap target berbasis pendapatan mereka.'
+        : "The lower of both partners' contributions to joint pockets this month, relative to their income-based targets.",
+    });
+  }
+
+  // 2. Settlement currency -- scoped to inter-partner claims only
+  // (initialReceivableAmount is set on PARTNER_RECEIVABLE-style claims, not
+  // on client reimbursements, which are a business/solo concern rather than
+  // a partnership-alignment signal). Zero claims ever created means no data
+  // -- NOT assumed-perfect, which would be a small manufactured confidence.
+  const claimTx = state.transactions.filter(t => t.initialReceivableAmount != null);
+  const totalClaimedEver = claimTx.reduce((acc, t) => acc + (t.initialReceivableAmount ?? 0), 0);
+  if (totalClaimedEver > 0) {
+    const totalOutstanding = claimTx
+      .filter(t => t.status === 'PARTNER_RECEIVABLE')
+      .reduce((acc, t) => acc + (t.receivableAmount ?? 0), 0);
+    const settlementValue = Math.max(0, Math.min(100, (1 - totalOutstanding / totalClaimedEver) * 100));
+    components.push({
+      label: language === 'ID' ? 'Penyelesaian Klaim' : 'Settlement Currency',
+      value: Math.round(settlementValue),
+      description: language === 'ID'
+        ? 'Persentase klaim antar-pasangan yang telah diselesaikan, dari seluruh riwayat klaim.'
+        : 'Share of inter-partner claims settled, out of everything ever claimed.',
+    });
+  }
+
+  // 3. Freedom Date trend -- reuses the exact same last-check-in comparison
+  // as Together Layer 1 (routes/Together.tsx), so this doesn't invent a
+  // second historical mechanism. Closer or newly-in-view scores high;
+  // further or newly-out-of-view scores low, shown honestly, never
+  // softened; unchanged sits in between since holding steady isn't a
+  // regression but isn't progress either. No check-in recorded yet means
+  // no data.
+  if (state.lastCheckDate != null) {
+    const priorYear = state.lastCheckFreedomYear ?? -1;
+    let trendValue: number;
+    let trendDescription: string;
+    if (priorYear === -1 && currentFreedomYear === -1) {
+      trendValue = 60;
+      trendDescription = language === 'ID' ? 'Masih di luar cakrawala 20 tahun, tidak berubah sejak pemeriksaan terakhir.' : 'Still beyond the 20-year horizon, unchanged since your last check-in.';
+    } else if (priorYear === -1 && currentFreedomYear !== -1) {
+      trendValue = 100;
+      trendDescription = language === 'ID' ? 'Kini terlihat dalam cakrawala 20 tahun sejak pemeriksaan terakhir.' : 'Newly within the 20-year horizon since your last check-in.';
+    } else if (priorYear !== -1 && currentFreedomYear === -1) {
+      trendValue = 20;
+      trendDescription = language === 'ID' ? 'Bergeser ke luar cakrawala 20 tahun sejak pemeriksaan terakhir.' : 'Moved beyond the 20-year horizon since your last check-in.';
+    } else {
+      const deltaYears = priorYear - currentFreedomYear;
+      if (deltaYears > 0) {
+        trendValue = 100;
+        trendDescription = language === 'ID' ? `Freedom Date bergerak ${deltaYears} tahun lebih dekat sejak pemeriksaan terakhir.` : `Freedom Date moved ${deltaYears} year${deltaYears === 1 ? '' : 's'} closer since your last check-in.`;
+      } else if (deltaYears < 0) {
+        trendValue = 20;
+        trendDescription = language === 'ID' ? `Freedom Date bergerak ${Math.abs(deltaYears)} tahun lebih jauh sejak pemeriksaan terakhir.` : `Freedom Date moved ${Math.abs(deltaYears)} year${Math.abs(deltaYears) === 1 ? '' : 's'} further since your last check-in.`;
+      } else {
+        trendValue = 60;
+        trendDescription = language === 'ID' ? 'Tidak ada perubahan pada Freedom Date sejak pemeriksaan terakhir.' : 'No change in Freedom Date since your last check-in.';
+      }
+    }
+    components.push({
+      label: language === 'ID' ? 'Tren Freedom Date' : 'Freedom Date Trend',
+      value: trendValue,
+      description: trendDescription,
+    });
+  }
+
+  const score = components.length > 0
+    ? Math.round(components.reduce((acc, c) => acc + c.value, 0) / components.length)
+    : null;
+
+  return { score, components };
+};
+
 export const formatIDR = (privacyMode: boolean, language: 'EN' | 'ID', num: number) => {
     if (privacyMode) return "••••••";
     return new Intl.NumberFormat(language === 'ID' ? 'id-ID' : 'en-US', { maximumFractionDigits: 0 }).format(num);

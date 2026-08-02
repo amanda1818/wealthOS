@@ -1,9 +1,52 @@
 import React, { useEffect, useState } from 'react';
 import { HeartHandshake, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { useStore } from '../state/store';
-import { computeDerived, computeFreedomYear, formatIDR } from '../state/selectors';
+import { computeDerived, computeFreedomYear, formatIDR, computePartnershipScore, PartnershipScoreResult } from '../state/selectors';
 import EmptyState from '../ui/EmptyState';
 import Card from '../ui/Card';
+import PartnershipScore from '../components/PartnershipScore';
+
+// Shown after the Freedom Date / net worth cards in both the empty-state and
+// delta-view branches below -- its own data-sufficiency gate (score === null)
+// is independent of Layer 1's "has a prior check-in" gate, so it can render
+// real data even on someone's very first visit if contribution/settlement
+// history already exists.
+const PartnershipSection: React.FC<{ partnership: PartnershipScoreResult; language: 'EN' | 'ID' }> = ({ partnership, language }) => {
+  if (partnership.score === null) {
+    return (
+      <Card className="p-6">
+        <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-sand-500 mb-2">
+          {language === 'ID' ? 'Skor Kemitraan' : 'Partnership Score'}
+        </div>
+        <p className="text-xs text-sand-500 leading-relaxed">
+          {language === 'ID'
+            ? 'Belum cukup data nyata untuk menghitung skor ini -- perlu setidaknya satu dari: kontribusi pendapatan tercatat, riwayat klaim, atau pemeriksaan Freedom Date sebelumnya.'
+            : "Not enough real data to compute this yet -- needs at least one of: recorded income contributions, claim history, or a prior Freedom Date check-in."}
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <PartnershipScore score={partnership.score} />
+      <Card className="p-5 space-y-3">
+        <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-sand-500">
+          {language === 'ID' ? 'Cara Perhitungan' : 'How this is computed'}
+        </div>
+        {partnership.components.map(c => (
+          <div key={c.label} className="flex justify-between items-start gap-4 text-xs">
+            <div>
+              <div className="font-bold text-sand-900">{c.label}</div>
+              <div className="text-sand-500 text-[11px] leading-relaxed">{c.description}</div>
+            </div>
+            <div className="font-serif font-bold text-sand-950 shrink-0">{c.value}</div>
+          </div>
+        ))}
+      </Card>
+    </div>
+  );
+};
 
 const Together: React.FC = () => {
   const state = useStore(s => s.state);
@@ -26,6 +69,7 @@ const Together: React.FC = () => {
   const activeLifeCards = state.lifeCards.filter(c => c.isActive);
   const currentFreedomYear = computeFreedomYear(state.monthlyIncome, derived.monthlyBurn, derived.totalPocketCash, activeLifeCards);
   const currentNetWorth = derived.householdNetWorth;
+  const partnership = computePartnershipScore(state, currentFreedomYear, language);
 
   useEffect(() => {
     handleRecordCheckIn(currentFreedomYear, currentNetWorth);
@@ -66,6 +110,7 @@ const Together: React.FC = () => {
             <div className="text-xl font-serif font-bold text-sand-950">Rp {fmtIDR(currentNetWorth)}</div>
           </div>
         </Card>
+        <PartnershipSection partnership={partnership} language={language} />
       </div>
     );
   }
@@ -126,6 +171,8 @@ const Together: React.FC = () => {
         <div className="text-2xl font-serif font-bold text-sand-950 mb-2">Rp {fmtIDR(currentNetWorth)}</div>
         <div className="text-xs">{netWorthDeltaNode}</div>
       </Card>
+
+      <PartnershipSection partnership={partnership} language={language} />
     </div>
   );
 };
