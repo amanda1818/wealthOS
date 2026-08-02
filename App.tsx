@@ -1,10 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Shield, Home, Menu, Mic, Send, Settings as SettingsIcon, Plus, QrCode, CheckCircle2, Activity, Calendar, HeartHandshake, Zap, Compass, Briefcase, Gem, Building2, AlertTriangle, ArrowRight, Lock, Droplets, Play, Pause, RefreshCw, HandCoins, ArrowRightLeft, Scale, Banknote, Globe, Camera, Image as ImageIcon, X, LayoutDashboard, History, ScrollText, Sparkles, MessageSquare, MicOff, Link, AlertOctagon, User, Users, Eye, EyeOff, LogOut } from 'lucide-react';
-import { AppState, PocketType, Transaction, TransactionType, PocketSettings, PocketGroup, Pocket, Currency, FortressGoal, User as UserType, Asset, Liability, AdvisorMessage, HistoricalSnapshot, AgentPayload } from './types';
+import { AppState, PocketType, Transaction, TransactionType, PocketSettings, PocketGroup, Pocket, Currency, FortressGoal, User as UserType, Asset, Liability, AdvisorMessage, HistoricalSnapshot, AgentPayload, LifeCard } from './types';
 import PocketCard from './components/PocketCard';
 import TransactionList from './components/TransactionList';
-import FreedomVelocity from './components/FreedomVelocity';
 import PartnershipScore from './components/PartnershipScore';
 import PocketDetail from './components/PocketDetail';
 import Ledger from './components/Ledger';
@@ -16,7 +15,7 @@ import Assistant from './components/Assistant';
 import ActiveTasks from './components/ActiveTasks';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
 import IntelligenceDesk from './components/IntelligenceDesk';
-import { GapDetails } from './components/GapDetails';
+import Freedom from './components/Freedom';
 import RecurringManager from './components/RecurringManager';
 import { parseTransactionInput, parseMultimodalInput, extractReceiptData } from './services/geminiService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
@@ -1282,6 +1281,15 @@ const App: React.FC = () => {
       setState(prev => ({ ...prev, postponedTaskIds: ids }));
   };
 
+  const handleToggleLifeCard = (card: LifeCard) => {
+      setState(prev => ({
+          ...prev,
+          lifeCards: prev.lifeCards.some(c => c.id === card.id)
+              ? prev.lifeCards.map(c => c.id === card.id ? card : c)
+              : [...prev.lifeCards, card],
+      }));
+  };
+
   const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -1660,11 +1668,15 @@ const App: React.FC = () => {
                                   balanceHidden={isBalanceHiddenForLens}
                             />
                             
-                            <GapDetails 
-                                monthlyBurn={monthlyBurn} 
-                                monthlyPassive={monthlyPassive} 
-                                sovereigntyGap={sovereigntyGap} 
-                                language={language} 
+                            <Freedom
+                                monthlyBurn={monthlyBurn}
+                                monthlyPassive={monthlyPassive}
+                                sovereigntyGap={sovereigntyGap}
+                                monthlyIncome={state.monthlyIncome}
+                                currentLiquidAssets={totalPocketCash}
+                                lifeCards={state.lifeCards}
+                                onToggleLifeCard={handleToggleLifeCard}
+                                language={language}
                             />
 
                             <ActiveTasks 
