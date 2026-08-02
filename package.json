@@ -9,13 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "18.2.0",
-    "react": "18.2.0",
-    "lucide-react": "0.344.0",
-    "recharts": "2.10.3",
-    "pdfjs-dist": "3.11.174",
     "@supabase/supabase-js": "2.39.0",
-    "lodash": "4.17.21"
+    "lodash": "4.17.21",
+    "lucide-react": "0.344.0",
+    "pdfjs-dist": "3.11.174",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "recharts": "2.10.3",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

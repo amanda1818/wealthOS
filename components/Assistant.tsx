@@ -18,7 +18,7 @@ export interface AlgorithmicTask {
 interface AssistantProps {
   state: AppState;
   language?: 'EN' | 'ID';
-  switchTab: (tab: 'DASHBOARD' | 'COMMAND' | 'FORTRESS' | 'CHRONICLE') => void;
+  switchTab: (tab: 'TODAY' | 'FLOW' | 'TOGETHER' | 'FREEDOM' | 'MINE') => void;
   onUpdateChatHistory: (msgs: AdvisorMessage[]) => void;
   postponedTaskIds: string[];
   onUpdatePostponedTaskIds: (ids: string[]) => void;
@@ -64,7 +64,7 @@ const Assistant: React.FC<AssistantProps> = ({
         urgency: postponedTaskIds.includes(taskId) ? 'POSTPONED' : 'TODAY',
         category: 'REIMBURSEMENT',
         actionLabel: language === 'ID' ? 'Klaim' : 'Settle',
-        onAction: () => switchTab('DASHBOARD'),
+        onAction: () => switchTab('TODAY'),
       });
     });
 
@@ -84,7 +84,7 @@ const Assistant: React.FC<AssistantProps> = ({
         urgency: postponedTaskIds.includes(taskId) ? 'POSTPONED' : 'TODAY',
         category: 'CLAIM',
         actionLabel: language === 'ID' ? 'Tagih' : 'Collect',
-        onAction: () => switchTab('DASHBOARD'),
+        onAction: () => switchTab('TODAY'),
       });
     });
 
@@ -104,7 +104,7 @@ const Assistant: React.FC<AssistantProps> = ({
           urgency: postponedTaskIds.includes(taskId) ? 'POSTPONED' : (isUrgent ? 'TOMORROW' : 'DAY_3'),
           category: 'LIABILITY',
           actionLabel: language === 'ID' ? 'Arus Kas' : 'Refill',
-          onAction: () => switchTab('COMMAND'),
+          onAction: () => switchTab('FLOW'),
         });
       }
     });
@@ -126,7 +126,7 @@ const Assistant: React.FC<AssistantProps> = ({
           urgency: postponedTaskIds.includes(taskId) ? 'POSTPONED' : 'TOMORROW',
           category: 'POCKET_LOW',
           actionLabel: language === 'ID' ? 'Bagi Aliran' : 'Waterfall',
-          onAction: () => switchTab('COMMAND'),
+          onAction: () => switchTab('FLOW'),
         });
       }
     });
@@ -148,7 +148,7 @@ const Assistant: React.FC<AssistantProps> = ({
         urgency: postponedTaskIds.includes(taskId) ? 'POSTPONED' : 'DAY_3',
         category: 'INDEPENDENCE_GAP',
         actionLabel: language === 'ID' ? 'Suntik' : 'Inject',
-        onAction: () => switchTab('COMMAND'),
+        onAction: () => switchTab('FLOW'),
       });
     }
 
